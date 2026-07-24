@@ -1,0 +1,53 @@
+rules:
+- id: insecure-hash-function
+  message: >-
+    Detected use of an insecure MD4 or MD5 hash function.
+    These functions have known vulnerabilities and are considered deprecated.
+    Consider using 'SHA256' or a similar function instead.
+  metadata:
+    cwe:
+    - 'CWE-327: Use of a Broken or Risky Cryptographic Algorithm'
+    owasp:
+    - A03:2017 - Sensitive Data Exposure
+    - A02:2021 - Cryptographic Failures
+    source-rule-url: https://github.com/PyCQA/bandit/blob/b1411bfb43795d3ffd268bef17a839dee954c2b1/bandit/plugins/hashlib_new_insecure_functions.py
+    asvs:
+      section: V6 Stored Cryptography Verification Requirements
+      control_id: 6.2.2 Insecure Custom Algorithm
+      control_url: https://github.com/OWASP/ASVS/blob/master/4.0/en/0x14-V6-Cryptography.md#v62-algorithms
+      version: '4'
+    references:
+    - https://tools.ietf.org/html/rfc6151
+    - https://crypto.stackexchange.com/questions/44151/how-does-the-flame-malware-take-advantage-of-md5-collision
+    - https://pycryptodome.readthedocs.io/en/latest/src/hash/sha3_256.html
+    category: security
+    technology:
+    - python
+    subcategory:
+    - audit
+    likelihood: LOW
+    impact: MEDIUM
+    confidence: MEDIUM
+    seazone-promoted-from: deep-scan/python/lang/security/insecure-hash-function.yaml
+    seazone-promotion-rationale: >-
+      Vendored upstream confidence is MEDIUM, not this ruleset's normal HIGH
+      bar for pr-blocking/, but hashlib.new("md4"/"md5", ...) (and the
+      name="md4"/"md5" kwarg form) is a direct, unambiguous call-pattern
+      with negligible false-positive risk, and is the generic-constructor
+      sibling of the hashlib.md5(...)/hashlib.sha1(...) rules already
+      promoted (see README.md "Promoted exception"). No id collision: this
+      id does not otherwise exist in pr-blocking/.
+      KNOWN GAP (documented, not fixed by this promotion): this upstream
+      rule's regex `[M|m][D|d][4|5]` only matches 3-character MD4/MD5
+      algorithm-name strings; it does NOT match "sha1"/"SHA1" (4 chars),
+      so hashlib.new("sha1", ...) is NOT caught by this rule, and no other
+      vendored deep-scan/ rule covers hashlib.new("sha1", ...) either
+      (confirmed by repo-wide grep for hashlib.new across deep-scan/ at
+      promotion time). This is a genuine upstream coverage gap, not a
+      Seazone omission — revisit if opengrep-rules ever ships a corrected
+      regex/rule upstream.
+  languages: [python]
+  severity: WARNING
+  pattern-either:
+  - pattern: hashlib.new("=~/[M|m][D|d][4|5]/", ...)
+  - pattern: hashlib.new(..., name="=~/[M|m][D|d][4|5]/", ...)
