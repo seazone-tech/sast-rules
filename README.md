@@ -85,13 +85,57 @@ reviewed exception — not a change to the selection criteria above — see
 `.pilot/canary/README.md` ("Rules promoted from `deep-scan/`") for the full
 writeup and the fixture proving it fires.
 
+**Promoted exceptions, continued (2026-07-24, FU-C — weak-hash siblings):**
+three more `confidence: MEDIUM` weak-hash rules were promoted from
+`deep-scan/` in the same follow-up, closing the remaining gaps the FU-B
+smoke test had flagged for `hashlib`-family weak hashing:
+
+- `python.lang.security.insecure-hash-algorithm-sha1-hashlib`
+  (`pr-blocking/python/lang/security/insecure-hash-algorithms-sha1.yaml`)
+  — `hashlib.sha1(...)`, the direct SHA1 sibling of the MD5 rule above.
+  Id suffixed `-hashlib` even though nothing in `pr-blocking/` currently
+  collides with the bare id `insecure-hash-algorithm-sha1` — it's reused
+  by **three** separate deep-scan rules for three distinct call patterns
+  (hashlib, `cryptography.hazmat`, pycryptodome); only the hashlib variant
+  is promoted here, and the suffix pre-empts a future collision if either
+  of the other two is ever promoted.
+- `python.lang.security.insecure-hash-function`
+  (`pr-blocking/python/lang/security/insecure-hash-function.yaml`) —
+  `hashlib.new("md4"/"md5", ...)` (and the `name=` kwarg form), the
+  generic-constructor sibling of the direct `hashlib.md5`/`hashlib.sha1`
+  calls. No id collision. **Known gap, not fixed by this promotion:** the
+  upstream regex only matches 3-character algorithm names (`MD4`/`MD5`),
+  so `hashlib.new("sha1", ...)` is **not** caught by this or any other
+  vendored `deep-scan/` rule — confirmed by a local test file that scores
+  0 findings against `pr-blocking/` even after this promotion. This is an
+  upstream coverage gap (documented in the rule's own metadata), not
+  something fixable by promotion alone.
+- `python.lang.security.audit.md5-used-as-password`
+  (`pr-blocking/python/lang/security/audit/md5-used-as-password.yaml`) —
+  the first **taint-mode** rule promoted into `pr-blocking/`: flags an
+  MD5 digest (from `hashlib.md5`, `hashlib.new(name="MD5")`,
+  `Crypto(dome).Hash.MD5`, or `cryptography.hazmat...MD5`) flowing into
+  any call whose function name matches `/password/i`. FU-B's original
+  commit had explicitly deferred this one ("revisit separately"); it's
+  promoted now because the sink is narrowly scoped (not an arbitrary
+  taint sink) and MD5-for-password-hashing is a strictly worse
+  anti-pattern than bare MD5. Flagged as a slightly higher-risk exception
+  than its siblings precisely because it's taint-mode (more dataflow
+  surface than a direct pattern match) — see the rule file's own
+  `metadata.seazone-promotion-rationale` for the full caveat.
+
+All three are documented in the rule files' own
+`metadata.seazone-promotion-rationale` and in `.pilot/canary/README.md`
+("Rules promoted from `deep-scan/`"), with local `opengrep scan --error`
+proof (exit 1 + rule ID reported) for each.
+
 | Language   | Rules |
 |------------|------:|
-| Python     |    18 |
+| Python     |    21 |
 | JavaScript |    16 |
 | Go         |    12 |
 | TypeScript |     0 |
-| **Total**  |**46** |
+| **Total**  |**49** |
 
 **Note on TypeScript:** as of the pinned commit, `opengrep-rules` has zero
 rules under `typescript/` that meet the `confidence: HIGH` bar (its
@@ -206,6 +250,12 @@ unchanged at 669. Re-validated with the same `v1.25.0` binary:
 `Configuration is valid - found 0 configuration error(s), and 46 rule(s).`
 The evidence block above is left as-is as the historical record of the
 initial vendoring commit; it does not reflect this later promotion.
+
+**Update (2026-07-24, FU-C — weak-hash siblings):** three more rules were
+promoted from `deep-scan/` (see "Promoted exceptions, continued" above), so
+`pr-blocking/` now validates at **49 rules**, not 46; `deep-scan/` is still
+unchanged at 669. Re-validated with the same `v1.25.0` binary:
+`Configuration is valid - found 0 configuration error(s), and 49 rule(s).`
 
 **Action needed from whoever builds the reusable "Opengrep diff-aware PR
 scan" workflow (later task):** there is no official pre-built, digest-pinnable

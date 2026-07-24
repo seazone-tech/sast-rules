@@ -41,14 +41,20 @@ tip (same 45-rule set validated in Task 1 / `.pilot/opengrep-smoke.md`).
 |---|---|---|---|
 | `vuln_python.py` | `pr-blocking.python.pycryptodome.security.insecure-hash-algorithm-md5` | CWE-327 (Broken/Risky Crypto Algorithm) | **PASS** — 1 finding, exit 1 |
 | `vuln_python_hashlib_md5.py` | `pr-blocking.python.lang.security.insecure-hash-algorithm-md5-hashlib` | CWE-327 (Broken/Risky Crypto Algorithm) | **PASS** — 1 finding, exit 1 |
+| `vuln_python_hashlib_sha1.py` | `pr-blocking.python.lang.security.insecure-hash-algorithm-sha1-hashlib` | CWE-327 (Broken/Risky Crypto Algorithm) | **PASS** — 1 finding, exit 1 |
+| `vuln_python_hashlib_new_md5.py` | `pr-blocking.python.lang.security.insecure-hash-function` | CWE-327 (Broken/Risky Crypto Algorithm) | **PASS** — 1 finding, exit 1 |
+| `vuln_python_md5_used_as_password.py` | `pr-blocking.python.lang.security.audit.md5-used-as-password` | CWE-327 (Broken/Risky Crypto Algorithm) | **PASS** — 1 finding, exit 1 |
 | `vuln_javascript.js` | `pr-blocking.javascript.lang.security.audit.code-string-concat` | CWE-95 (Eval Injection) | **PASS** — 1 finding, exit 1 |
 | `vuln_go.go` | `pr-blocking.go.lang.security.injection.tainted-sql-string` | CWE-89 (SQL Injection) | **PASS** — 1 finding, exit 1 |
 
-**4/4 fixtures caught.** No coverage gap to document for this rollout's three
-in-scope languages (Python, JavaScript, Go). Python has two fixtures on
-purpose — see "Rules promoted from deep-scan/" below — one per distinct
-MD5 call pattern now blocked (pycryptodome and hashlib), each in its own
-file to preserve the "exactly one finding per fixture" invariant.
+**7/7 fixtures caught.** No coverage gap to document for this rollout's three
+in-scope languages (Python, JavaScript, Go) — except the documented
+`hashlib.new("sha1", ...)` upstream gap noted below, which deliberately has
+**no** fixture (see "Rules promoted from `deep-scan/`"). Python has five
+fixtures on purpose — one per distinct weak-hash call pattern now blocked
+(pycryptodome MD5, hashlib MD5, hashlib SHA1, generic `hashlib.new`
+MD4/MD5, and MD5-used-as-password), each in its own file to preserve the
+"exactly one finding per fixture" invariant.
 
 ### Rules promoted from `deep-scan/`
 
@@ -70,6 +76,45 @@ most common Python weak-hash pattern seen in Seazone code. See the rule
 file's own `metadata.seazone-promotion-rationale` for the full writeup.
 `vuln_python_hashlib_md5.py` is the new fixture proving it fires.
 
+**2026-07-24 (FU-C) — `insecure-hash-algorithm-sha1-hashlib`,
+`insecure-hash-function`, `md5-used-as-password`.** Continuation of the
+above: the remaining `hashlib`-family weak-hash siblings flagged in FU-B's
+own "revisit separately" note are now promoted too.
+
+- `insecure-hash-algorithm-sha1-hashlib` — `hashlib.sha1(...)`, promoted
+  from `deep-scan/python/lang/security/insecure-hash-algorithms.yaml`. Id
+  suffixed `-hashlib` because the bare id `insecure-hash-algorithm-sha1` is
+  reused by three separate deep-scan rules (hashlib, `cryptography.hazmat`,
+  pycryptodome); only the hashlib variant is promoted. Proven by
+  `vuln_python_hashlib_sha1.py`.
+- `insecure-hash-function` — `hashlib.new("md4"/"md5", ...)`, promoted
+  from `deep-scan/python/lang/security/insecure-hash-function.yaml`
+  unchanged (no id collision). Proven by `vuln_python_hashlib_new_md5.py`.
+  **Documented gap:** this rule's upstream regex (`[M|m][D|d][4|5]`) only
+  matches 3-character algorithm names, so `hashlib.new("sha1", ...)` is
+  **not** matched by this or any other vendored `deep-scan/` rule — a
+  local test (`import hashlib; hashlib.new("sha1", data)`) scores 0
+  findings against `pr-blocking/` even after this promotion. This is a
+  genuine upstream coverage gap (see the rule's own metadata for the full
+  writeup), not something a rule-file edit here can responsibly fix
+  without also editing/re-vendoring the upstream rule logic — deliberately
+  left as a documented gap rather than a fixture, per policy below.
+- `md5-used-as-password` — MD5 flowing into any `*password*`-named call,
+  promoted from
+  `deep-scan/python/lang/security/audit/md5-used-as-password.yaml`
+  unchanged (no id collision). This is the **first taint-mode rule**
+  promoted into `pr-blocking/` — flagged as a slightly higher-risk
+  exception than its direct-pattern siblings for that reason (see the
+  rule file's `metadata.seazone-promotion-rationale`). Proven in isolation
+  by `vuln_python_md5_used_as_password.py`, which deliberately uses the
+  bare `Crypto.Hash.MD5` source (not `hashlib.md5(...)`) so the fixture
+  triggers *only* this rule, not also `insecure-hash-algorithm-md5-hashlib`
+  — preserving the one-finding-per-fixture invariant. (A real-world
+  `hashlib.md5(...)`-into-`store_password(...)` usage legitimately fires
+  *both* rules at once; that combined-firing case was also verified
+  locally — 2 findings, exit 1 — but is not used as a canary fixture here
+  since it would break the invariant.)
+
 Raw evidence (abbreviated) from the run above:
 
 ```
@@ -83,6 +128,24 @@ exit_code=1
 Ran 18 rules on 1 file: 1 finding.
   ❯ pr-blocking.python.lang.security.insecure-hash-algorithm-md5-hashlib
     22┆ return hashlib.md5(data).hexdigest()
+exit_code=1
+
+=== .pilot/canary/vuln_python_hashlib_sha1.py (added 2026-07-24, FU-C) ===
+Ran 21 rules on 1 file: 1 finding.
+  ❯ pr-blocking.python.lang.security.insecure-hash-algorithm-sha1-hashlib
+    18┆ return hashlib.sha1(data).hexdigest()
+exit_code=1
+
+=== .pilot/canary/vuln_python_hashlib_new_md5.py (added 2026-07-24, FU-C) ===
+Ran 21 rules on 1 file: 1 finding.
+  ❯ pr-blocking.python.lang.security.insecure-hash-function
+    18┆ return hashlib.new("md5", data).hexdigest()
+exit_code=1
+
+=== .pilot/canary/vuln_python_md5_used_as_password.py (added 2026-07-24, FU-C) ===
+Ran 21 rules on 1 file: 1 finding.
+  ❯ pr-blocking.python.lang.security.audit.md5-used-as-password
+    22┆ store_password(digest)
 exit_code=1
 
 === .pilot/canary/vuln_javascript.js ===
@@ -112,10 +175,14 @@ exit_code=1
   is now closed (see "Rules promoted from `deep-scan/`" above);
   `hashlib.md5(...)` is covered by `insecure-hash-algorithm-md5-hashlib` and
   proven by the separate `vuln_python_hashlib_md5.py` fixture.
-  `md5-used-as-password` (a distinct, narrower bandit rule for MD5-as-KDF)
-  remains `deep-scan/`-only — it was not part of this promotion; revisit
-  separately if it also turns out to be a common real-world pattern worth
-  blocking.
+  **Update (2026-07-24, FU-C):** `md5-used-as-password` — deferred here as
+  "revisit separately" — has now also been promoted, along with
+  `hashlib.sha1(...)` (`insecure-hash-algorithm-sha1-hashlib`) and the
+  generic `hashlib.new("md4"/"md5", ...)` constructor form
+  (`insecure-hash-function`). See "Rules promoted from `deep-scan/`" above
+  for the full writeup of all three, including the one documented
+  remaining gap (`hashlib.new("sha1", ...)`, not caught by any vendored
+  rule).
 - **JavaScript** — `code-string-concat` is a taint-mode rule: it requires an
   Express-style request handler (`app.get(..., function (req, res) {...})`)
   as the pattern-source scope and `req.query`/`req.body`/`req.params`/
