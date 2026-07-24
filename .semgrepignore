@@ -1,0 +1,5 @@
+# Deliberately vulnerable canary fixtures (.pilot/canary/) exist to be caught
+# by pr-blocking/ when scanned directly by hand or by the efficacy canary
+# (see .pilot/canary/README.md). They must never surface as findings when
+# this repo (sast-rules) is scanned as a target in its own right.
+.pilot/canary/
