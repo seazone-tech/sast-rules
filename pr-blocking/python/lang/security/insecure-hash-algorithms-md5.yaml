@@ -1,0 +1,52 @@
+rules:
+- id: insecure-hash-algorithm-md5-hashlib
+  patterns:
+    - pattern: hashlib.md5(...)
+    - pattern-not: hashlib.md5(..., usedforsecurity=False, ...)
+  message: >-
+    Detected MD5 hash algorithm which is considered insecure. MD5 is not
+    collision resistant and is therefore not suitable as a cryptographic
+    signature. Use SHA256 or SHA3 instead.
+  metadata:
+    source-rule-url: https://github.com/PyCQA/bandit/blob/d5f8fa0d89d7b11442fc6ec80ca42953974354c8/bandit/blacklists/calls.py#L59
+    cwe:
+    - 'CWE-327: Use of a Broken or Risky Cryptographic Algorithm'
+    owasp:
+    - A03:2017 - Sensitive Data Exposure
+    - A02:2021 - Cryptographic Failures
+    bandit-code: B303
+    asvs:
+      section: V6 Stored Cryptography Verification Requirements
+      control_id: 6.2.2 Insecure Custom Algorithm
+      control_url: https://github.com/OWASP/ASVS/blob/master/4.0/en/0x14-V6-Cryptography.md#v62-algorithms
+      version: '4'
+    references:
+    - https://www.schneier.com/blog/archives/2012/10/when_will_we_se.html
+    - https://www.trendmicro.com/vinfo/us/security/news/vulnerabilities-and-exploits/sha-1-collision-signals-the-end-of-the-algorithm-s-viability
+    - http://2012.sharcs.org/slides/stevens.pdf
+    - https://pycryptodome.readthedocs.io/en/latest/src/hash/sha3_256.html
+    category: security
+    technology:
+    - python
+    subcategory:
+    - vuln
+    likelihood: LOW
+    impact: MEDIUM
+    confidence: MEDIUM
+    seazone-promoted-from: deep-scan/python/lang/security/insecure-hash-algorithms-md5.yaml
+    seazone-promotion-rationale: >-
+      Vendored upstream confidence is MEDIUM (below this ruleset's normal
+      HIGH-confidence bar for pr-blocking/), but hashlib.md5(...) is a
+      direct, unambiguous call-pattern with a built-in usedforsecurity=False
+      escape hatch already excluded — negligible false-positive risk in
+      practice. Promoted as a deliberate, reviewed exception (not a bulk
+      criteria change) because hashlib.md5 is the most common Python
+      weak-hash pattern in Seazone code and pr-blocking/ previously only
+      caught the pycryptodome-specific variant
+      (insecure-hash-algorithm-md5). Rule id suffixed -hashlib to avoid
+      colliding with, or being confused for,
+      pr-blocking/python/pycryptodome/security/insecure-hash-algorithm-md5.yaml,
+      which flags a different call pattern (Crypto.Hash.MD5.new(...)).
+  severity: WARNING
+  languages:
+  - python

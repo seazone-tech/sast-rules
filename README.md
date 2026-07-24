@@ -69,13 +69,29 @@ with `confidence: LOW`/`MEDIUM` — are deliberately **excluded** from
 `pr-blocking/` even if they look important, per the "err toward not
 blocking" rule for this gate. They still live in `deep-scan/`.
 
+**Promoted exception (2026-07-24):** `python.lang.security.insecure-hash-algorithm-md5-hashlib`
+(`pr-blocking/python/lang/security/insecure-hash-algorithms-md5.yaml`, id
+suffixed `-hashlib`) was promoted from `deep-scan/` despite carrying
+upstream `confidence: MEDIUM`, not `HIGH`. Rationale: `hashlib.md5(...)` is
+the most common Python weak-hash pattern in Seazone code, and this specific
+rule's pattern (a direct call to `hashlib.md5`, with the `usedforsecurity=False`
+escape hatch already excluded) has negligible real-world false-positive
+risk — the `MEDIUM` tag is an artifact of the upstream Bandit-derived
+metadata, not a reflection of this pattern's actual precision. Before
+promoting this, `pr-blocking/` only caught the pycryptodome-specific MD5
+call (`insecure-hash-algorithm-md5`, unchanged, still pycryptodome-only),
+so a real `hashlib.md5` usage would not have blocked a PR. This is a single,
+reviewed exception — not a change to the selection criteria above — see
+`.pilot/canary/README.md` ("Rules promoted from `deep-scan/`") for the full
+writeup and the fixture proving it fires.
+
 | Language   | Rules |
 |------------|------:|
-| Python     |    17 |
+| Python     |    18 |
 | JavaScript |    16 |
 | Go         |    12 |
 | TypeScript |     0 |
-| **Total**  |**45** |
+| **Total**  |**46** |
 
 **Note on TypeScript:** as of the pinned commit, `opengrep-rules` has zero
 rules under `typescript/` that meet the `confidence: HIGH` bar (its
@@ -182,6 +198,14 @@ EXIT_CODE=0
 Configuration is valid - found 0 configuration error(s), and 669 rule(s).
 EXIT_CODE=0
 ```
+
+**Update (2026-07-24, later same day):** one rule was promoted from
+`deep-scan/` to `pr-blocking/` (see "Promoted exception" above), so
+`pr-blocking/` now validates at **46 rules**, not 45; `deep-scan/` is
+unchanged at 669. Re-validated with the same `v1.25.0` binary:
+`Configuration is valid - found 0 configuration error(s), and 46 rule(s).`
+The evidence block above is left as-is as the historical record of the
+initial vendoring commit; it does not reflect this later promotion.
 
 **Action needed from whoever builds the reusable "Opengrep diff-aware PR
 scan" workflow (later task):** there is no official pre-built, digest-pinnable

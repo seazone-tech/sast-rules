@@ -40,11 +40,35 @@ tip (same 45-rule set validated in Task 1 / `.pilot/opengrep-smoke.md`).
 | Fixture | Expected rule | CWE | Result |
 |---|---|---|---|
 | `vuln_python.py` | `pr-blocking.python.pycryptodome.security.insecure-hash-algorithm-md5` | CWE-327 (Broken/Risky Crypto Algorithm) | **PASS** — 1 finding, exit 1 |
+| `vuln_python_hashlib_md5.py` | `pr-blocking.python.lang.security.insecure-hash-algorithm-md5-hashlib` | CWE-327 (Broken/Risky Crypto Algorithm) | **PASS** — 1 finding, exit 1 |
 | `vuln_javascript.js` | `pr-blocking.javascript.lang.security.audit.code-string-concat` | CWE-95 (Eval Injection) | **PASS** — 1 finding, exit 1 |
 | `vuln_go.go` | `pr-blocking.go.lang.security.injection.tainted-sql-string` | CWE-89 (SQL Injection) | **PASS** — 1 finding, exit 1 |
 
-**3/3 fixtures caught.** No coverage gap to document for this rollout's three
-in-scope languages (Python, JavaScript, Go).
+**4/4 fixtures caught.** No coverage gap to document for this rollout's three
+in-scope languages (Python, JavaScript, Go). Python has two fixtures on
+purpose — see "Rules promoted from deep-scan/" below — one per distinct
+MD5 call pattern now blocked (pycryptodome and hashlib), each in its own
+file to preserve the "exactly one finding per fixture" invariant.
+
+### Rules promoted from `deep-scan/`
+
+**2026-07-24 — `insecure-hash-algorithm-md5-hashlib`.** The Design notes
+section below (written at initial rollout) documented `hashlib.md5` as a
+known coverage gap: `pr-blocking/` only caught the pycryptodome-specific
+MD5 rule, not the far more common `hashlib.md5(...)` pattern. That gap is
+now closed — `pr-blocking/python/lang/security/insecure-hash-algorithms-md5.yaml`
+was promoted from
+`deep-scan/python/lang/security/insecure-hash-algorithms-md5.yaml`
+(same content, rule id suffixed `-hashlib` to avoid colliding with the
+pre-existing pycryptodome rule of the same original id). This is a
+deliberate, reviewed exception to the normal `confidence: HIGH` bar for
+`pr-blocking/` (see main `README.md`) — the vendored rule's upstream
+metadata says `confidence: MEDIUM`, but `hashlib.md5(...)` is a direct,
+unambiguous call pattern (with `usedforsecurity=False` already excluded)
+that carries negligible false-positive risk in practice, and it is the
+most common Python weak-hash pattern seen in Seazone code. See the rule
+file's own `metadata.seazone-promotion-rationale` for the full writeup.
+`vuln_python_hashlib_md5.py` is the new fixture proving it fires.
 
 Raw evidence (abbreviated) from the run above:
 
@@ -53,6 +77,12 @@ Raw evidence (abbreviated) from the run above:
 Ran 17 rules on 1 file: 1 finding.
   ❯ pr-blocking.python.pycryptodome.security.insecure-hash-algorithm-md5
     16┆ h = Crypto.Hash.MD5.new()
+exit_code=1
+
+=== .pilot/canary/vuln_python_hashlib_md5.py (added 2026-07-24, see promotion note above) ===
+Ran 18 rules on 1 file: 1 finding.
+  ❯ pr-blocking.python.lang.security.insecure-hash-algorithm-md5-hashlib
+    22┆ return hashlib.md5(data).hexdigest()
 exit_code=1
 
 === .pilot/canary/vuln_javascript.js ===
@@ -70,15 +100,22 @@ exit_code=1
 
 ## Design notes / why these specific fixtures
 
-- **Python** — `Crypto.Hash.MD5.new(...)` (pycryptodome), not `hashlib.md5`.
-  `pr-blocking/` only vendors the pycryptodome-specific MD5 rule; the
-  `hashlib`-based MD5 rules (`insecure-hash-algorithms*`,
-  `md5-used-as-password`) live in `deep-scan/` only, not `pr-blocking/` —
-  see `.pilot/opengrep-smoke.md` §5, where a synthetic `hashlib.md5` line
-  was scanned against `pr-blocking/` and did **not** fire. `insecure-hash-algorithm-md5`
+- **Python** — `Crypto.Hash.MD5.new(...)` (pycryptodome). `insecure-hash-algorithm-md5`
   is the exact rule id the Task 4 live PR test seeded and confirmed turns
-  the gate red, so the fixture here reproduces that literal trigger pattern
+  the gate red, so `vuln_python.py` reproduces that literal trigger pattern
   (`Crypto.Hash.MD5.new(...)`) rather than a lookalike that wouldn't match.
+  **Historical note (superseded 2026-07-24):** this bullet originally said
+  `pr-blocking/` only vendors the pycryptodome-specific MD5 rule and that
+  `hashlib`-based MD5 rules live in `deep-scan/` only — see
+  `.pilot/opengrep-smoke.md` §5, where a synthetic `hashlib.md5` line was
+  scanned against `pr-blocking/` and did **not** fire at the time. That gap
+  is now closed (see "Rules promoted from `deep-scan/`" above);
+  `hashlib.md5(...)` is covered by `insecure-hash-algorithm-md5-hashlib` and
+  proven by the separate `vuln_python_hashlib_md5.py` fixture.
+  `md5-used-as-password` (a distinct, narrower bandit rule for MD5-as-KDF)
+  remains `deep-scan/`-only — it was not part of this promotion; revisit
+  separately if it also turns out to be a common real-world pattern worth
+  blocking.
 - **JavaScript** — `code-string-concat` is a taint-mode rule: it requires an
   Express-style request handler (`app.get(..., function (req, res) {...})`)
   as the pattern-source scope and `req.query`/`req.body`/`req.params`/
