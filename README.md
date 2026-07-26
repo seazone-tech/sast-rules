@@ -45,11 +45,26 @@ to list under the internal-use license here. If a future bump ever needs a
 registry-only rule, list it in this section with a justification before
 merging.
 
-## Layout: `pr-blocking/` vs `deep-scan/`
+## Layout: `pr-blocking/` vs `deep-scan/` vs `deep-scan-quality/`
 
-Both directories mirror `opengrep-rules`' own `<language>/<framework>/...`
-structure, restricted to the four languages in scope for this rollout:
-**Python, JavaScript, TypeScript, Go**.
+All three directories mirror `opengrep-rules`' own
+`<language>/<framework>/...` structure, restricted to the four languages in
+scope for this rollout: **Python, JavaScript, TypeScript, Go**.
+
+Three rulesets, three consumers:
+
+- **`pr-blocking/`** — the PR gate (blocking). See below.
+- **`deep-scan/`** — the central/periodic scanner
+  (`seazone-tech/sast-scanner`) consumes **this directory only**
+  (`SAST_RULESET_DIR=deep-scan`, the default in `scanner/config.py`).
+  **Security rules only** — every rule here has `metadata.category:
+  security` (or is unambiguously a security rule despite its path, see
+  below), full stop.
+- **`deep-scan-quality/`** — everything else (correctness, best-practice,
+  compatibility, performance, maintainability, portability). Not consumed
+  by anything today; kept vendored (not deleted) because it may be useful
+  later for a separate code-quality/lint pass. See "`deep-scan-quality/` —
+  non-security rules, split out" below for why this split exists.
 
 ### `pr-blocking/` — the PR gate (blocking)
 
@@ -149,28 +164,72 @@ what it matches), so they already fire against `.ts`/`.tsx` files when
 `HIGH` confidence, that belongs in it. Re-check this on every version bump —
 see "Bumping the pin" below.
 
-### `deep-scan/` — the central scanner (broad)
+### `deep-scan/` — the central scanner (broad, security-only)
 
-Used by a later-phase central/periodic scanner, not the PR gate. This is
-the full, unfiltered vendored set for the same four languages — every rule
-category and every confidence level, including everything already in
-`pr-blocking/`.
+Consumed by `seazone-tech/sast-scanner`'s weekly org-wide scan, not the PR
+gate. This is the full vendored set for the same four languages, every
+confidence level, including everything already in `pr-blocking/` — but,
+since **2026-07-26**, **security rules only** (see "`deep-scan-quality/`"
+below for why). Before that date this directory also held 119 non-security
+rule files; those were moved out, not deleted.
 
 | Language   | Rules | Rule files |
 |------------|------:|-----------:|
-| Python     |   375 |        334 |
-| JavaScript |   182 |        173 |
-| Go         |    82 |         76 |
-| TypeScript |    30 |         30 |
-| **Total**  | **669** |    **613** |
+| Python     |   252 |        246 |
+| JavaScript |   168 |        162 |
+| Go         |    71 |         68 |
+| TypeScript |    18 |         18 |
+| **Total**  | **509** |    **494** |
 
-(Some upstream `.yaml` files define more than one rule, hence rules ≠ files.)
+(Some `.yaml` files define more than one rule, hence rules ≠ files.)
 
-Both directories vendor **rule definition files only** (`*.yaml`/`*.yml`
-under `rules:`). Upstream's paired test fixtures (sample vulnerable/safe code
-used by `opengrep-rules`' own test suite, e.g. `*.py`, `*.js`, `*.fixed.py`)
-are intentionally not vendored — they aren't needed to run `opengrep scan`
-and would only add noise to this repo.
+### `deep-scan-quality/` — non-security rules, split out (2026-07-26)
+
+`deep-scan/` originally vendored **every** rule in scope (613 files / 669
+rules), including 119 files that aren't security rules at all
+(`correctness/`, `best-practice/`, `compatibility/`, `performance/`,
+`maintainability/`, `portability/`, plus a handful of non-security rules
+that happened to live under an `audit/` path with no `security/` ancestor).
+`sast-scanner` is a **security** control (SRE-46 / Airbnb 10.2.8); those 119
+rules only inflated finding volume, LLM triage cost, and dashboard noise
+without adding security coverage — most visibly, a flood of
+`typescript.react.portability.i18next.jsx-not-internationalized` findings
+during a real org-wide run.
+
+They were moved (not deleted — potentially useful later for a separate
+code-quality/lint pass) to this sibling directory, one-for-one, preserving
+their relative path under the language root
+(e.g. `deep-scan/python/django/correctness/model-save.yaml` ->
+`deep-scan-quality/python/django/correctness/model-save.yaml`).
+
+**Classification rule:** a rule file stayed in `deep-scan/` if its path
+contains a `security/` directory segment (e.g.
+`javascript/lang/security/audit/...`, `python/pyramid/security/...`), OR —
+the one exception — if the file itself is unambiguously a security rule
+despite not living under a `security/` path
+(`python/distributed/security.yaml`, whose rule id is `require-encryption`
+and whose own `metadata.category` is `security`). Everything else moved.
+This mechanical rule was cross-checked against `metadata.category` across
+every file in the ruleset and matches it almost exactly (509/494 vs.
+524-ish `category: security` occurrences, accounting for multi-rule files) —
+the one deliberate exception above is the sole reconciling difference.
+
+| Language   | Rules | Rule files |
+|------------|------:|-----------:|
+| Python     |   123 |         88 |
+| JavaScript |    14 |         11 |
+| Go         |    11 |          8 |
+| TypeScript |    12 |         12 |
+| **Total**  | **160** |    **119** |
+
+Not consumed by `sast-scanner` or any other automation today — nothing
+currently points `SAST_RULESET_DIR` (or an equivalent) at this directory.
+
+All three directories vendor **rule definition files only**
+(`*.yaml`/`*.yml` under `rules:`). Upstream's paired test fixtures (sample
+vulnerable/safe code used by `opengrep-rules`' own test suite, e.g. `*.py`,
+`*.js`, `*.fixed.py`) are intentionally not vendored — they aren't needed to
+run `opengrep scan` and would only add noise to this repo.
 
 ## Validating the ruleset
 
@@ -257,6 +316,27 @@ promoted from `deep-scan/` (see "Promoted exceptions, continued" above), so
 unchanged at 669. Re-validated with the same `v1.25.0` binary:
 `Configuration is valid - found 0 configuration error(s), and 49 rule(s).`
 
+**Update (2026-07-26 — split non-security rules to `deep-scan-quality/`):**
+119 non-security rule files were moved out of `deep-scan/` into the new
+sibling `deep-scan-quality/` (see that section above). Re-validated with the
+locally-installed official `v1.25.0` binary (installed via the project's own
+`install.sh`, same one used for the evidence above — still no official
+Docker image exists for Opengrep):
+
+```
+$ opengrep scan --config deep-scan/ --validate
+Configuration is valid - found 0 configuration error(s), and 509 rule(s).
+$ opengrep scan --config deep-scan-quality/ --validate
+Configuration is valid - found 0 configuration error(s), and 160 rule(s).
+$ opengrep scan --config pr-blocking/ --validate
+Configuration is valid - found 0 configuration error(s), and 49 rule(s).
+```
+
+`deep-scan/` drops from 613 files / 669 rules to **494 files / 509 rules**;
+`pr-blocking/` (49 rules) is unaffected since every rule it vendors already
+had `category: security` + `confidence: HIGH` and none of the 119 moved
+files were ever promoted there.
+
 **Action needed from whoever builds the reusable "Opengrep diff-aware PR
 scan" workflow (later task):** there is no official pre-built, digest-pinnable
 Opengrep image to point CI at today. Options to resolve there: (a) have
@@ -275,11 +355,13 @@ third-party image.
    to a specific release tag's commit if upstream cuts one).
 2. Clone `opengrep-rules` at that SHA and re-run the same selection
    criteria described above (`category: security` + `confidence: HIGH` +
-   `owasp`/`cwe` present → `pr-blocking/`; everything for the four
-   languages → `deep-scan/`), re-copying into this repo.
+   `owasp`/`cwe` present → `pr-blocking/`; everything security-relevant for
+   the four languages → `deep-scan/`; everything else → `deep-scan-quality/`
+   — see "Classification rule" in the `deep-scan-quality/` section above),
+   re-copying into this repo.
 3. Update [`VERSION`](./VERSION) to `opengrep-rules@<new-40-char-sha>`.
-4. Re-run the validation command above against both `pr-blocking/` and
-   `deep-scan/` and confirm `0 configuration error(s)`.
+4. Re-run the validation command above against `pr-blocking/`, `deep-scan/`,
+   and `deep-scan-quality/` and confirm `0 configuration error(s)` for each.
 5. Open a PR (never push straight to the default branch). `CODEOWNERS`
    requires `@seazone-tech/sre` review. Merge with a merge commit — do not
    squash (squashing on GitHub regenerates the commit message and can drop
