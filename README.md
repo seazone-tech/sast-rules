@@ -45,21 +45,27 @@ to list under the internal-use license here. If a future bump ever needs a
 registry-only rule, list it in this section with a justification before
 merging.
 
-## Layout: `pr-blocking/` vs `deep-scan/` vs `deep-scan-quality/`
+## Layout: `pr-blocking/` vs `deep-scan/` vs `deep-scan-audit/` vs `deep-scan-quality/`
 
-All three directories mirror `opengrep-rules`' own
+All four directories mirror `opengrep-rules`' own
 `<language>/<framework>/...` structure, restricted to the four languages in
 scope for this rollout: **Python, JavaScript, TypeScript, Go**.
 
-Three rulesets, three consumers:
+Four rulesets, one active consumer:
 
 - **`pr-blocking/`** — the PR gate (blocking). See below.
 - **`deep-scan/`** — the central/periodic scanner
   (`seazone-tech/sast-scanner`) consumes **this directory only**
   (`SAST_RULESET_DIR=deep-scan`, the default in `scanner/config.py`).
-  **Security rules only** — every rule here has `metadata.category:
-  security` (or is unambiguously a security rule despite its path, see
-  below), full stop.
+  **High/medium-precision security rules only** — every rule here has
+  `metadata.category: security` (or is unambiguously a security rule
+  despite its path, see below), and is **not** one of the low-precision
+  `audit`-tier rules described next.
+- **`deep-scan-audit/`** — the `audit`-tier security rules split out of
+  `deep-scan/` on 2026-07-27 (measured to be 41% of a production scan's
+  finding volume). Not consumed by anything today; kept vendored (not
+  deleted) for a deliberate, opt-in deep-dive scan. See "`deep-scan-audit/`
+  — low-precision audit rules, split out" below.
 - **`deep-scan-quality/`** — everything else (correctness, best-practice,
   compatibility, performance, maintainability, portability). Not consumed
   by anything today; kept vendored (not deleted) because it may be useful
@@ -164,24 +170,120 @@ what it matches), so they already fire against `.ts`/`.tsx` files when
 `HIGH` confidence, that belongs in it. Re-check this on every version bump —
 see "Bumping the pin" below.
 
-### `deep-scan/` — the central scanner (broad, security-only)
+### `deep-scan/` — the central scanner (broad, security, non-audit)
 
 Consumed by `seazone-tech/sast-scanner`'s weekly org-wide scan, not the PR
-gate. This is the full vendored set for the same four languages, every
+gate. This is the vendored set for the same four languages, every
 confidence level, including everything already in `pr-blocking/` — but,
 since **2026-07-26**, **security rules only** (see "`deep-scan-quality/`"
-below for why). Before that date this directory also held 119 non-security
-rule files; those were moved out, not deleted.
+below for why), and, since **2026-07-27**, **with the low-precision
+`audit`-tier rules also split out** (see "`deep-scan-audit/`" below for
+why).
 
 | Language   | Rules | Rule files |
 |------------|------:|-----------:|
-| Python     |   252 |        246 |
-| JavaScript |   168 |        162 |
-| Go         |    71 |         68 |
-| TypeScript |    18 |         18 |
-| **Total**  | **509** |    **494** |
+| Python     |   155 |        152 |
+| JavaScript |    79 |         73 |
+| Go         |    24 |         24 |
+| TypeScript |     4 |          4 |
+| **Total**  | **262** |    **253** |
 
 (Some `.yaml` files define more than one rule, hence rules ≠ files.)
+
+### `deep-scan-audit/` — low-precision audit rules, split out (2026-07-27)
+
+**Motivation.** A completed 821-repo production scan (archived SARIF)
+produced 5,448 findings across 196 rules. `metadata.subcategory: audit` —
+opengrep/semgrep's own vocabulary for "low precision by design, needs a
+human to audit the finding" — accounted for 2,282 of them (41%). A single
+rule, `javascript.lang.security.html-in-template-string`, accounted for
+another 1,377 (25% of *everything*, org-wide) on its own. Together,
+`audit`-tier rules plus that one rule (no overlap) made up **67% of the
+total finding volume** for the weekly org-wide scan. None of this reflects
+a real vulnerability rate — it reflects rule design. Curating rules is a
+free, deterministic, permanent fix; moving it here (not deleting it) keeps
+the option open for a deliberate, opt-in deep-dive scan later.
+
+**Selection.** Candidate rules were identified by path (an `/audit/`
+directory segment under `deep-scan/`) — 282 files matched. **This path
+filter was then verified against rule content, not applied blindly**,
+because a previous split (see `deep-scan-quality/` below) had already
+shown that path alone misclassifies rules. That check turned up an
+important negative result worth recording:
+
+> The originally-suggested content check for this split was "any rule
+> carrying `metadata.cwe` or `metadata.owasp` stays in `deep-scan/`
+> regardless of path." Verified against the data: **all 510 files** in
+> `deep-scan/` (100%, including all 282 `audit/`-path candidates) carry at
+> least one of `cwe`/`owasp` — this metadata is standard on essentially
+> every rule sourced from the security ruleset, low-precision or not, so
+> it does **not** discriminate between "genuinely mis-swept security
+> rule" and "correctly-audit-tier rule." Applying it literally would have
+> moved zero files, defeating the purpose of this split. It was **not**
+> used as the actual criterion; see below for what was used instead.
+
+Instead, the real precedent was used: the 2026-07-26 `deep-scan-quality/`
+split had already hand-identified and restored **16 genuine security
+rules** that a path-based filter had mis-swept — CSRF-protection-disabled
+checks, cookie `Secure`/`HttpOnly`/`SameSite` flag checks, and a
+file-permissions check (commit `831e50f`). These are definitive,
+low-false-positive checks for a specific security control being disabled
+or misconfigured — categorically different from the rest of the
+`audit/`-tier population, which is mostly heuristic/taint-adjacent
+("detected use of X, audit whether it's reachable by untrusted input").
+That same categorical reasoning was applied **consistently across every
+framework**, not just the one (`pyramid`) it happened to surface in
+originally: any `/audit/`-path rule whose check is CSRF-disabled, a
+cookie security-flag check, or a file-permissions check was kept in
+`deep-scan/`, regardless of framework.
+
+- **26** `/audit/`-path rule files were kept back in `deep-scan/` on this
+  basis: the 15 already there under `python/pyramid/audit/` and
+  `javascript/audit/` (from the 2026-07-26 fix; unchanged here) plus **11
+  more** of the same three categories found in other frameworks —
+  `go/gorilla` (3, session cookie flags), `go/lang/security/audit/net` (2,
+  cookie flags), `javascript/express` (1, cookie settings),
+  `python/django/security/audit` (2, CSRF-exempt + secure-cookies),
+  `python/flask/security/audit` (2, CSRF-disabled + secure-cookie), and
+  `python/lang/security/audit` (1, file permissions). (A 17th rule of the
+  original 16, `go/.../permissions/file_permission.yaml`, was never under
+  an `/audit/` path to begin with, so it was never a candidate here.)
+- The remaining **256** `/audit/`-path files moved to `deep-scan-audit/`,
+  one-for-one, preserving their relative path under the language root
+  (e.g. `deep-scan/go/lang/security/audit/unsafe.yaml` ->
+  `deep-scan-audit/go/lang/security/audit/unsafe.yaml`).
+
+**`javascript.lang.security.html-in-template-string`, evaluated on its own
+merits.** This rule doesn't live under an `/audit/` path
+(`javascript/lang/security/html-in-template-string.yaml`), so the path
+filter above never touched it — it was evaluated separately, as asked.
+The rule fires on *any* template literal that looks like HTML
+(`` `<div>${$VAR}</div>` ``) with *any* interpolation — it has no taint
+analysis and does not check whether `$VAR` is attacker-influenced. A hand
+review of the archived findings confirmed this in practice: one hit was
+`` `<span>${totalProvisionada > 0 ? ... : ...}</span>` ``, interpolating a
+computed **number** into a template literal — there is no plausible XSS
+here. The rule's own metadata agrees with this assessment
+(`subcategory: audit`, `confidence: LOW`), and at 1,377 hits (25% of all
+findings org-wide) from one rule, the evidence points to an over-broad
+rule rather than a systemic XSS problem. **Decision: moved to
+`deep-scan-audit/`**, alongside the other audit-tier rules — the same
+one-for-one path convention applies
+(`deep-scan-audit/javascript/lang/security/html-in-template-string.yaml`).
+If a real, more targeted HTML-in-template-string XSS rule is needed later
+(e.g. gated on the interpolated value coming from a request/user-input
+source), it should be added as a new `deep-scan/` rule rather than by
+un-hiding this one.
+
+| Language   | Rules | Rule files |
+|------------|------:|-----------:|
+| Python     |   111 |        108 |
+| JavaScript |    90 |         90 |
+| Go         |    48 |         45 |
+| TypeScript |    14 |         14 |
+| **Total**  | **263** |    **257** |
+
+Not consumed by `sast-scanner` or any other automation today.
 
 ### `deep-scan-quality/` — non-security rules, split out (2026-07-26)
 
@@ -337,6 +439,39 @@ Configuration is valid - found 0 configuration error(s), and 49 rule(s).
 had `category: security` + `confidence: HIGH` and none of the 119 moved
 files were ever promoted there.
 
+**Update (2026-07-26, later — 16-rule reconciliation, commit `831e50f`):**
+16 files that a path-based filter had swept into `deep-scan-quality/` were
+found, on content review, to be genuine security rules (CSRF, cookie
+`Secure`/`HttpOnly`/`SameSite`, file permissions — see
+"`deep-scan-audit/`" below, which reuses this same precedent) and moved
+back. `deep-scan/` ends at **510 files / 525 rules**;
+`deep-scan-quality/` ends at **103 files / 144 rules**. The 494/509 and
+160/119 figures directly above are the historical record of the initial
+split commit and are left as-is; they were superseded by this
+reconciliation before `v1.0.0` was tagged.
+
+**Update (2026-07-27 — split `audit`-tier rules to `deep-scan-audit/`):**
+256 low-precision `audit`-tier rule files, plus
+`javascript.lang.security.html-in-template-string` (evaluated separately,
+see "`deep-scan-audit/`" above), were moved out of `deep-scan/` into the
+new sibling `deep-scan-audit/`. Re-validated with the same
+locally-installed official `v1.25.0` binary:
+
+```
+$ opengrep scan --config deep-scan/ --validate
+Configuration is valid - found 0 configuration error(s), and 262 rule(s).
+$ opengrep scan --config deep-scan-audit/ --validate
+Configuration is valid - found 0 configuration error(s), and 263 rule(s).
+$ opengrep scan --config deep-scan-quality/ --validate
+Configuration is valid - found 0 configuration error(s), and 144 rule(s).
+$ opengrep scan --config pr-blocking/ --validate
+Configuration is valid - found 0 configuration error(s), and 49 rule(s).
+```
+
+`deep-scan/` drops from 510 files / 525 rules to **253 files / 262
+rules**; `deep-scan-audit/` starts at **257 files / 263 rules**;
+`deep-scan-quality/` and `pr-blocking/` are unaffected by this split.
+
 **Action needed from whoever builds the reusable "Opengrep diff-aware PR
 scan" workflow (later task):** there is no official pre-built, digest-pinnable
 Opengrep image to point CI at today. Options to resolve there: (a) have
@@ -354,14 +489,18 @@ third-party image.
    `git ls-remote https://github.com/opengrep/opengrep-rules HEAD` (or pin
    to a specific release tag's commit if upstream cuts one).
 2. Clone `opengrep-rules` at that SHA and re-run the same selection
-   criteria described above (`category: security` + `confidence: HIGH` +
-   `owasp`/`cwe` present → `pr-blocking/`; everything security-relevant for
-   the four languages → `deep-scan/`; everything else → `deep-scan-quality/`
-   — see "Classification rule" in the `deep-scan-quality/` section above),
+   criteria described above: `category: security` + `confidence: HIGH` +
+   `owasp`/`cwe` present → `pr-blocking/`; every other security rule for
+   the four languages that is **not** `audit`-tier → `deep-scan/`; every
+   security rule with an `/audit/` path segment (content-verified against
+   the CSRF/cookie-flag/file-permission exception, see "`deep-scan-audit/`"
+   section above) → `deep-scan-audit/`; everything non-security →
+   `deep-scan-quality/` (see "Classification rule" in that section above),
    re-copying into this repo.
 3. Update [`VERSION`](./VERSION) to `opengrep-rules@<new-40-char-sha>`.
 4. Re-run the validation command above against `pr-blocking/`, `deep-scan/`,
-   and `deep-scan-quality/` and confirm `0 configuration error(s)` for each.
+   `deep-scan-audit/`, and `deep-scan-quality/` and confirm
+   `0 configuration error(s)` for each.
 5. Open a PR (never push straight to the default branch). `CODEOWNERS`
    requires `@seazone-tech/sre` review. Merge with a merge commit — do not
    squash (squashing on GitHub regenerates the commit message and can drop
