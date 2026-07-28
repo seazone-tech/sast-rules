@@ -1,0 +1,15 @@
+# Arquivo DESCARTAVEL: valida o gate de IaC. NAO MERGEAR.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: teste-inseguro
+spec:
+  hostNetwork: true
+  hostPID: true
+  containers:
+    - name: app
+      image: nginx:latest
+      securityContext:
+        privileged: true
+        runAsUser: 0
+        allowPrivilegeEscalation: true
