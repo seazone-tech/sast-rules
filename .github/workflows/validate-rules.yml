@@ -1,0 +1,16 @@
+# Guarda o invariante que o filtro de caminho do caller depende.
+# Ver ci/check_pr_blocking_languages.py para o porque.
+name: Validate rules
+on:
+  pull_request:
+    paths:
+      - 'pr-blocking/**'
+      - 'ci/**'
+      - '.github/workflows/validate-rules.yml'
+jobs:
+  languages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin to v4.2.2
+      - run: pip install --quiet pyyaml
+      - run: python3 ci/check_pr_blocking_languages.py
