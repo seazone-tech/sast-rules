@@ -51,6 +51,48 @@ All four directories mirror `opengrep-rules`' own
 `<language>/<framework>/...` structure, restricted to the four languages in
 scope for this rollout: **Python, JavaScript, TypeScript, Go**.
 
+### `deep-scan/secrets/` — vendored secret-detection rules (Airbnb 16.1.3)
+
+Not a fifth language: `deep-scan/secrets/{gitleaks,security}/` vendors
+`opengrep-rules`' `generic/secrets/{gitleaks,security}/` wholesale (225
+rules, YAML only — fixture files stripped, same as every other vendored
+directory), at the **same** pinned commit (`f1d2b562b414783763fd02a6ed2736eaed622efa`)
+already used for the four languages. No new pin, no curation by hand: every
+rule is kept, same "vendor everything, split by measured noise later"
+philosophy already used for `deep-scan-audit`/`deep-scan-quality` (see
+their sections below) rather than a subjective pre-filter.
+
+`generic/secrets/gitleaks/` is itself gitleaks' own detector set (AWS,
+GCP, GitHub, Slack, Stripe, Sendgrid, Twilio, Mailgun, OpenAI, HashiCorp,
+Grafana, npm, JWT, private-key blocks, 200+ others) ported to Opengrep
+pattern-regex rules; `generic/secrets/security/` adds ~50 more
+(`detected-*`-style: AWS creds, `/etc/shadow`, PGP private-key blocks,
+username:password-in-URI, etc). Two of the generic rules
+(`generic-api-key`, `detected-generic-secret`) use Opengrep's
+`metavariable-analysis: analyzer: entropy` — Opengrep does support entropy
+scoring, contrary to the assumption that a Semgrep-family engine can't do
+this — but upstream's own rule comment flags `generic-api-key` as
+low-`confidence`/noisy ("not recommended to be used in PR comments"), so
+expect that one specifically to need tuning once real findings come in.
+
+Consumed automatically by the same `opengrep scan --config deep-scan/`
+invocation `sast-scanner` already runs — **no `sast-scanner` code change**
+required for this addition; `SAST_RULESET_DIR` stays `deep-scan`.
+
+Checked for `id` collisions against the four existing language directories
+before merging: 226 existing ids vs 225 new secret ids, **zero collisions,
+zero duplicates within `secrets/` itself**.
+
+**Known limitation, by design of the calling scanner, not this ruleset:**
+`sast-scanner` clones with `git clone --depth 1` (current tree only, no
+history) — these rules only ever see whatever secret is sitting in the
+repo *right now*. They cannot find a secret that was committed and later
+removed (still live forever in git history unless the history itself is
+rewritten) — that requires a real git-history walk (e.g. gitleaks' own
+`detect` mode against a full clone), which is a deliberately separate,
+not-yet-scoped effort given the cost of a full clone at org scale, not
+something folded into this vendoring.
+
 Four rulesets, one active consumer:
 
 - **`pr-blocking/`** — the PR gate (blocking). See below.
