@@ -1,0 +1,77 @@
+# Padrão Seazone de SAST (SRE-46 / Airbnb 10.2.8).
+#
+# SEM `paths:` no trigger, de propósito -- ver "detect-changes" abaixo.
+#
+# Até 2026-08-03 este arquivo tinha um filtro `paths:` aqui no `on:
+# pull_request:`. Isso economizava minuto de Actions (52% dos PRs não
+# tocam nenhuma extensão relevante), mas tem um efeito colateral sério e
+# documentado pelo próprio GitHub: quando o TRIGGER do workflow não casa,
+# o workflow simplesmente não roda -- nenhum run é criado -- e um required
+# check (via ruleset, seja `required_status_checks` seja `workflows`)
+# sem NENHUM run para referenciar fica "Expected -- Waiting for status to
+# be reported" pra sempre. Confirmado empiricamente aqui (ruleset isolada,
+# `enforcement: active`, apontando pra ESTE arquivo antes do conserto): um
+# push que só mudava o README foi REJEITADO na hora com "Required workflow
+# 'SAST' is not satisfied" -- ou seja, qualquer PR que não tocasse
+# .py/.js/.ts/.go ficaria travado pra sempre se este check fosse required.
+#
+# O conserto (documentado pelo próprio GitHub): mover o filtro do TRIGGER
+# pro JOB, via `if:`. Um job pulado por `if:` reporta "Success", não
+# "Pending" -- não trava merge. Isso é o que o job `detect-changes` faz.
+name: SAST
+on:
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+jobs:
+  # Substitui o antigo filtro de `paths:` do trigger. Não precisa de
+  # checkout: a lista de arquivos vem direto da API do PR (mais barato que
+  # clonar só pra decidir se vale a pena escanear).
+  #
+  # Extensões cobertas: as mesmas 4 linguagens que pr-blocking declara
+  # (python/js/ts/go) -- invariante de sincronia com
+  # seazone-tech/sast-rules/ci/check_pr_blocking_languages.py. Esta lista
+  # ainda é duplicada em cada repo que instala este caller (~609 em
+  # 2026-08-03) -- o rule type "workflows" de Rulesets, que eliminaria essa
+  # duplicação (referenciar este arquivo centralmente, sem precisar
+  # instalá-lo em cada repo), foi investigado e descartado: é recurso
+  # exclusivo de GitHub Enterprise Cloud (não disponível no plano Team) e,
+  # mesmo ignorando isso, staff do GitHub confirma que ele só dispara se o
+  # repo de destino já tiver um workflow local reagindo ao mesmo evento --
+  # ou seja, nunca elimina de fato a necessidade deste arquivo por repo.
+  # Ver seazone-tech/.github#21 pro histórico completo. Adicionado
+  # .yaml/.yml: pr-blocking ainda não tem regra nenhuma que reconhece YAML
+  # (0 das 68), então PR só-YAML hoje sempre dá "sem achado" -- incluído
+  # aqui de propósito, antes das regras existirem, para não ter que tocar
+  # neste trigger de novo quando elas entrarem.
+  detect-changes:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - id: filter
+        run: |
+          set -euo pipefail
+          gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate \
+            --jq '.[].filename' > changed_files.txt
+          if grep -qEi '\.(py|pyi|js|jsx|mjs|cjs|ts|tsx|mts|cts|go|ya?ml)$' changed_files.txt \
+             || grep -qx '\.github/workflows/sast-caller\.yml' changed_files.txt; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+  sast:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.relevant == 'true'
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    uses: seazone-tech/.github/.github/workflows/sast.yml@main
