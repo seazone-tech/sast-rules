@@ -18,6 +18,27 @@
 # O conserto (documentado pelo próprio GitHub): mover o filtro do TRIGGER
 # pro JOB, via `if:`. Um job pulado por `if:` reporta "Success", não
 # "Pending" -- não trava merge. Isso é o que o job `detect-changes` faz.
+#
+# Atualizado em 2026-08-04: aquele `if:` original ficava no job LOCAL
+# `sast:` (se enxergasse `if: needs.detect-changes.outputs.relevant ==
+# 'true'` embaixo, ele decidia se CHAMAVA ou não o workflow reutilizável).
+# Isso reintroduziu o MESMO bug de outro jeito: o check reportado ao
+# ruleset só se chama "sast / sast" (nome composto) quando o `uses:`
+# abaixo é de fato invocado -- quando o `if:` local era falso, o
+# reutilizável nunca era chamado, e o único check que existia era o nome
+# BARE do job local ("sast", sem o " / sast"), que nunca bate com o
+# contexto exigido pelo ruleset seazone-pr-governance. Resultado: PR sem
+# arquivo relevante (52% dos PRs) ficava "Expected -- Waiting for status
+# to be reported" pra sempre -- confirmado em produção em 2026-08-04,
+# bloqueando merges reais em vários repos até o ruleset ser revertido pra
+# `evaluate` como mitigação de emergência.
+#
+# Conserto: o job `sast:` abaixo agora chama `uses:` SEMPRE (sem `if:`
+# nenhum aqui), passando `relevant` como INPUT pro workflow reutilizável
+# decidir por dentro (ver seazone-tech/.github's sast.yml). Isso garante
+# que o nome composto "sast / sast" seja sempre criado -- só o CONTEÚDO
+# (rodar de verdade vs. ficar "skipped") depende da relevância agora, não
+# a EXISTÊNCIA do check.
 name: SAST
 on:
   pull_request:
@@ -69,9 +90,10 @@ jobs:
           fi
   sast:
     needs: detect-changes
-    if: needs.detect-changes.outputs.relevant == 'true'
     permissions:
       contents: read
       pull-requests: write
       checks: write
     uses: seazone-tech/.github/.github/workflows/sast.yml@main
+    with:
+      relevant: ${{ needs.detect-changes.outputs.relevant == 'true' }}
