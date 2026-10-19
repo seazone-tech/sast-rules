@@ -39,8 +39,9 @@ def main() -> int:
     excecoes = _excecoes()
     nivel1, nivel2 = [], []
     for a in json.loads(relatorio.read_text() or "[]") or []:
-        if f"{a.get('File')}:{a.get('RuleID')}:{a.get('StartLine')}" in excecoes:
-            continue
+        sem_commit = f"{a.get('File')}:{a.get('RuleID')}:{a.get('StartLine')}"
+        if sem_commit in excecoes or f"{a.get('Commit')}:{sem_commit}" in excecoes:
+            continue  # o gitleaks já tira o formato com commit; aqui vale de novo, para não depender disso
         (nivel2 if "suspeita" in (a.get("Tags") or []) else nivel1).append(a)
     for a in nivel1:
         print(f"::error file={_prop(a.get('File'))},line={a.get('StartLine')},title={_prop('Segredo (' + a.get('RuleID', '') + ')')}::"

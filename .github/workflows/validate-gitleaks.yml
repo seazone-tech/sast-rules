@@ -24,6 +24,8 @@ jobs:
           tar xzf "$TARBALL" gitleaks && sudo mv gitleaks /usr/local/bin/gitleaks
       - name: A config carrega
         run: gitleaks dir /dev/null --config gitleaks/seazone.toml --no-banner --log-level warn
+      - name: Testes do resultado_ci.py
+        run: python3 -m unittest discover -s gitleaks -p "test_*.py"
       - name: O bloco "fim da chave" está em dia com a config padrão
         run: |
           curl -fsSL "https://raw.githubusercontent.com/gitleaks/gitleaks/v${VERSION}/config/gitleaks.toml" -o "$RUNNER_TEMP/padrao.toml"
