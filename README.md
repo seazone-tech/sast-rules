@@ -45,6 +45,13 @@ to list under the internal-use license here. If a future bump ever needs a
 registry-only rule, list it in this section with a justification before
 merging.
 
+## `gitleaks/` — trava de segredos (pre-commit, hook do Claude e PR)
+
+Não é Opengrep: `gitleaks/seazone.toml` é a config do [gitleaks](https://github.com/gitleaks/gitleaks)
+8.30.1 que a trava de segredos da Seazone usa. Ela roda em três lugares: no hook do Claude Code, no git das
+máquinas (plugin `geral` do `seazone-skills`) e no job `segredos` do SAST reutilizável. Os níveis, a
+calibração e como atualizar estão em [`gitleaks/README.md`](./gitleaks/README.md).
+
 ## Layout: `pr-blocking/` vs `deep-scan/` vs `deep-scan-audit/` vs `deep-scan-quality/`
 
 All four directories mirror `opengrep-rules`' own
