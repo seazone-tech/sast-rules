@@ -17,6 +17,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # pin to v4.2.2
       - name: Instala o gitleaks fixado (sha256 conferido)
         run: |
+          cd "$RUNNER_TEMP"  # fora do checkout: o repo pode ter uma pasta ou arquivo chamado gitleaks
           TARBALL="gitleaks_${VERSION}_linux_x64.tar.gz"
           curl -fsSL -o "$TARBALL" "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/${TARBALL}"
           echo "${SHA256}  ${TARBALL}" | sha256sum -c -
