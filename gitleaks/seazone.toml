@@ -6,6 +6,9 @@
 # Níveis: regra com tags = ["suspeita"] é nível 2 (a trava pergunta). Sem a etiqueta, nível 1 (barra).
 # Calibração (19/10/2026): 79/79 segredos e 0/39 falsos alarmes no banco Seazone; 96/96 no banco de
 # formatos; nos 4.581 commits de 3 meses de 198 repos, 19 barrados (16 vazamentos prováveis) e 36 perguntas.
+# 20/10: teste com os 55 vazamentos da varredura de 13/10 (barrava 44): Slack com 14 dígitos, Neon npg_,
+# Smartsheet, fal.ai, Honeycomb, Pipedrive API_KEY, Cloudflare no provider.tf, .pyc e .zip (este no CLI:
+# --max-archive-depth 2). E o (?i) de uma regex de allowlist vazava para as seguintes: senha com "_" em URL passava.
 #
 # Ao subir a versão do gitleaks: rode gitleaks/atualizar_fim_da_chave.py com a config padrão nova
 # (o bloco "CORREÇÃO DO FIM DA CHAVE" no fim deste arquivo é gerado) e os testes do plugin.
@@ -22,6 +25,11 @@ regexes = ['''(?i)abcdefghij|bcdefghijk|0123456789a|1234567890a|x{8,}|0{12,}''']
 # ============ AJUSTES EM REGRAS PADRÃO ============
 
 [[rules]]
+id = "slack-user-token"
+# Padrão do gitleaks aceita de 10 a 13 dígitos por bloco; na varredura de 13/10 apareceu token com 14.
+regex = '''xox[pe](?:-[0-9]{8,16}){3}-[a-zA-Z0-9-]{28,34}'''
+
+[[rules]]
 id = "jwt"
 tags = ["suspeita"]
 regex = '''\b(ey[a-zA-Z0-9]{17,}\.ey[a-zA-Z0-9\/\\_-]{17,}\.(?:[a-zA-Z0-9\/\\_-]{10,}={0,2})?)(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
@@ -36,7 +44,7 @@ tags = ["suspeita"]
 [[rules.allowlists]]
 description = "linha de imagem de container: a tag é o hash do commit"
 regexTarget = "line"
-regexes = ['''(?i)^\s*-?\s*image\s*:''', '''\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/''', '''@sha256:[a-f0-9]{64}''']
+regexes = ['''(?i)^\s*-?\s*image\s*:''', '''(?-i)\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com/''', '''(?-i)@sha256:[a-f0-9]{64}''']
 [[rules.allowlists]]
 description = "NOME_DE_VARIAVEL e chaves públicas por natureza"
 regexes = ['''^[A-Z][A-Z0-9_]*$''', '''^sb_publishable_''', '''^phc_''', '''^[a-z]{2,}(?:[A-Z][a-z]{2,}){1,4}[0-9]{0,2}$''']
@@ -119,10 +127,11 @@ keywords = ["postgres", "mysql", "mariadb", "mongodb", "redis", "amqp", "mssql",
 description = "placeholders"
 regexes = [
   '''(?i)^(?:pass(?:word)?|passwd|senha|secret|changeme|change_?me|example|test|root|admin|postgres|mysql|redis|guest|user(?:name)?|x{3,}|\*+|your[_-]?pass(?:word)?|my[_-]?(?:secret[_-]?)?pass(?:word)?|pwd|pw)$''',
-  '''^\$\(?[A-Za-z_][A-Za-z0-9_]*\)?$''',
-  '''^%\(\w+\)s$''',
-  '''^#\{\w+\}$''',
-  '''^[A-Z]+(?:_[A-Z0-9]+)+$''',
+  # (?-i): o gitleaks junta estas regex numa só; sem isso, o (?i) de cima vale aqui e "abc_Xyz123" virava molde.
+  '''(?-i)^\$\(?[A-Za-z_][A-Za-z0-9_]*\)?$''',
+  '''(?-i)^%\(\w+\)s$''',
+  '''(?-i)^#\{\w+\}$''',
+  '''(?-i)^[A-Z]+(?:_[A-Z0-9]+)+$''',
 ]
 [[rules.allowlists]]
 description = "loopback (dev local)"
@@ -276,7 +285,7 @@ keywords = ["pat-"]
 [[rules]]
 id = "pipedrive-api-token"
 description = "Token da API do Pipedrive"
-regex = '''(?i)(?:pipedrive[\w.-]{0,20}?(?:api[_.-]?)?token[\w.-]{0,10}?[\s'"]{0,3}(?:=|:|=>|:=|,)[\s'"]{0,5}([a-f0-9]{40})|x-api-token[\s'"]{0,3}:[\s'"]{0,3}([a-f0-9]{40})|pipedrive\.com/[^\s'"]*?[?&]api_token=([a-f0-9]{40}))(?:[\x60'"\s;&]|\\[nr]|$)'''
+regex = '''(?i)(?:pipedrive[\w.-]{0,20}?(?:api[_.-]?)?(?:token|key)[\w.-]{0,10}?[\s'"]{0,3}(?:=|:|=>|:=|,)[\s'"]{0,5}([a-f0-9]{40})|x-api-token[\s'"]{0,3}:[\s'"]{0,3}([a-f0-9]{40})|pipedrive\.com/[^\s'"]*?[?&]api_token=([a-f0-9]{40}))(?:[\x60'"\s;&]|\\[nr]|$)'''
 keywords = ["pipedrive", "x-api-token"]
 entropy = 3
 
@@ -514,12 +523,56 @@ path = '''(?i)(?:^|/)(?:\.mcp\.json|mcp\.json|claude_desktop_config\.json)$'''
 regex = '''(?i)"[\w-]*(?:authorization|key|token|secret|password|bearer)[\w-]*"\s*:\s*"(?:Bearer\s+)?([^"\s$]{12,})"'''
 keywords = ["authorization", "key", "token", "secret", "password", "bearer"]
 
+# ============ FORMATOS DA VARREDURA DE 13/10 (teste com os 55 vazamentos) ============
+
+[[rules]]
+id = "neon-senha"
+description = "Senha de banco do Neon (npg_)"
+regex = '''\b(npg_[A-Za-z0-9]{12,40})(?:[\x60'"\s;,)}\]@&/]|\\[nr]|$)'''
+keywords = ["npg_"]
+
+[[rules]]
+id = "smartsheet-token"
+description = "Token da API do Smartsheet"
+regex = '''(?i)smartsheet[\w.-]{0,40}?[\s'"\x60|]{0,5}(?:=|:|=>|:=|\||\()?[\s'"\x60|]{0,6}([a-z0-9]{26}|[a-z0-9]{37})(?:[\x60'"\s;,)}\]|]|\\[nr]|$)'''
+entropy = 3.0
+keywords = ["smartsheet"]
+
+[[rules]]
+id = "fal-api-key"
+description = "Chave da fal.ai (uuid:hex)"
+regex = '''\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+
+[[rules]]
+id = "honeycomb-api-key"
+description = "Chave da API do Honeycomb (hcaik_/hcxik_/hcamk_/hcxmk_)"
+regex = '''\b(hc[ax][im]k_[a-z0-9]{20,80})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+keywords = ["hcaik_", "hcxik_", "hcamk_", "hcxmk_"]
+
+[[rules]]
+id = "honeycomb-api-key-classica"
+description = "Chave da API do Honeycomb (formato antigo, perto da palavra honeycomb)"
+regex = '''(?i)honeycomb[\w .:-]{0,40}?(?:key|token|chave)[\w .-]{0,10}?[\s'"\x60]{0,3}(?:=|:|=>|:=)?[\s'"\x60]{0,5}([a-z0-9]{22}|[a-f0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+entropy = 3.0
+keywords = ["honeycomb"]
+
+[[rules]]
+id = "cloudflare-terraform-provider"
+description = "Token da Cloudflare no provider do Terraform"
+regex = '''(?i)provider\s+"cloudflare"\s*\{[^}]{0,600}?\bapi_(?:token|key)\s*=\s*"([A-Za-z0-9_-]{37,40})"'''
+keywords = ["cloudflare"]
+
 # ============ ARQUIVOS QUE NUNCA VÃO PRO GIT (pelo nome) ============
 
 [[rules]]
 id = "arquivo-claude-settings-local"
 description = "Config pessoal do Claude Code (.claude/settings.local.json): é só da sua máquina"
 path = '''(?:^|/)\.claude/settings\.local\.json$'''
+
+[[rules]]
+id = "arquivo-python-compilado"
+description = "Python compilado (.pyc, __pycache__/): o gitleaks não lê binário, e ele pode levar chave junto"
+path = '''(?:^|/)__pycache__/|\.py[co]$'''
 
 [[rules]]
 id = "arquivo-env-local"
