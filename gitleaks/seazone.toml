@@ -9,6 +9,11 @@
 # 20/10: teste com os 55 vazamentos da varredura de 13/10 (barrava 44): Slack com 14 dígitos, Neon npg_,
 # Smartsheet, fal.ai, Honeycomb, Pipedrive API_KEY, Cloudflare no provider.tf, .pyc e .zip (este no CLI:
 # --max-archive-depth 2). E o (?i) de uma regex de allowlist vazava para as seguintes: senha com "_" em URL passava.
+# 20/10 (tarde): matriz formato × lugar (67 formatos com prefixo próprio em 16 lugares + 20 sem prefixo onde o nome
+# aparece), inventário dos 1.262 nomes de segredo da org e pesquisa (TruffleHog, Nosey Parker, Betterleaks, GitHub,
+# GitGuardian). O que vem depois da chave passou a aceitar & < > | # * . ! ? \ / @ : e, antes do sinal, | e ].
+# Regras novas para ~40 formatos (ghs_ novo do GitHub, Azure, sessão do Slack, Metabase, OneSignal, IA...).
+# Entropia 3,0 (não 3,5) nas regras que aceitam hex: hex de 32 às vezes fica abaixo de 3,5 por acaso.
 #
 # Ao subir a versão do gitleaks: rode gitleaks/atualizar_fim_da_chave.py com a config padrão nova
 # (o bloco "CORREÇÃO DO FIM DA CHAVE" no fim deste arquivo é gerado) e os testes do plugin.
@@ -32,7 +37,7 @@ regex = '''xox[pe](?:-[0-9]{8,16}){3}-[a-zA-Z0-9-]{28,34}'''
 [[rules]]
 id = "jwt"
 tags = ["suspeita"]
-regex = '''\b(ey[a-zA-Z0-9]{17,}\.ey[a-zA-Z0-9\/\\_-]{17,}\.(?:[a-zA-Z0-9\/\\_-]{10,}={0,2})?)(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(ey[a-zA-Z0-9]{17,}\.ey[a-zA-Z0-9\/\\_-]{17,}\.(?:[a-zA-Z0-9\/\\_-]{10,}={0,2})?)(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules.allowlists]]
 description = "Supabase: anon é pública; service_role tem regra própria (mensagem melhor)"
 regexTarget = "match"
@@ -119,10 +124,10 @@ keywords = ["innlcnzpy2vfcm9szs", "jzzxj2awnlx3jvbgui", "ic2vydmljzv9yb2xli"]
 [[rules]]
 id = "uri-with-password"
 description = "URL de conexão com a senha dentro (Postgres, MySQL, Mongo, Redis, RabbitMQ...)"
-regex = '''(?i)\b(?:postgres(?:ql)?|mysql|mariadb|mongodb|rediss?|amqps?|mssql|sqlserver|clickhouse)(?:\+[a-z0-9]+)?://[^:@/\s'"`]{0,64}:([^@/\s'"`<>{}\[\]]{6,128})@[\w.\-]+'''
+regex = '''(?i)\b(?:postgres(?:ql)?|mysql|mariadb|mongodb|rediss?|amqps?|mssql|sqlserver|clickhouse|https?|ftps?|sftp|ssh|smtps?|imaps?|pop3s?|ldaps?|git|nats|kafka|elasticsearch|opensearch|neo4j|bolt|cassandra|couchdb|influxdb)(?:\+[a-z0-9]+)?://[^:/\s'"`]{0,64}:([^@/\s'"`<>{}\[\]]{6,128})@[\w.\-]+'''
 secretGroup = 1
 entropy = 3
-keywords = ["postgres", "mysql", "mariadb", "mongodb", "redis", "amqp", "mssql", "sqlserver", "clickhouse"]
+keywords = ["://"]
 [[rules.allowlists]]
 description = "placeholders"
 regexes = [
@@ -170,35 +175,35 @@ keywords = ["n8n_api_"]
 [[rules]]
 id = "anthropic-any-credential"
 description = "Credencial da Anthropic (inclui o token OAuth do Claude Code)"
-regex = '''\b(sk-ant-[a-z]{3,8}[0-9]{0,2}-[A-Za-z0-9_-]{80,})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(sk-ant-[a-z]{3,8}[0-9]{0,2}-[A-Za-z0-9_-]{80,})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 entropy = 3.0
 keywords = ["sk-ant-"]
 
 [[rules]]
 id = "gcp-gemini-auth-key"
 description = "Chave do Gemini/AI Studio (AQ.)"
-regex = '''\b(AQ\.Ab8R[A-Za-z0-9_-]{46})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(AQ\.Ab8R[A-Za-z0-9_-]{46})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 entropy = 3.5
 keywords = ["aq.ab8r"]
 
 [[rules]]
 id = "gcp-oauth-client-secret"
 description = "Client secret de OAuth do Google (GOCSPX-)"
-regex = '''\b(GOCSPX-[A-Za-z0-9_-]{28})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(GOCSPX-[A-Za-z0-9_-]{28})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 entropy = 3.0
 keywords = ["gocspx-"]
 
 [[rules]]
 id = "gcp-oauth-refresh-token"
 description = "Refresh token do Google: acesso contínuo a uma conta Google"
-regex = '''\b(1//0[A-Za-z0-9_-]{40,})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(1//0[A-Za-z0-9_-]{40,})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 entropy = 3.5
 keywords = ["1//0"]
 
 [[rules]]
 id = "gcp-oauth-access-token"
 description = "Access token do Google (ya29.)"
-regex = '''\b(ya29\.[A-Za-z0-9_-]{60,})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(ya29\.[A-Za-z0-9_-]{60,})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 entropy = 3.5
 keywords = ["ya29."]
 
@@ -212,7 +217,7 @@ entropy = 3.5
 [[rules]]
 id = "cloudflare-global-api-key-legacy"
 description = "Global API key da Cloudflare"
-regex = '''(?i)(?:(?:cloudflare|\bcf)[\w.-]{0,20}?(?:api|global|auth)[_.-]?key|x-auth-key)[\s'"]{0,3}(?:=|:|=>|:=)[\s'"]{0,5}([a-f0-9]{37,45})(?:[^a-z0-9]|$)'''
+regex = '''(?i)(?:(?:cloudflare|\bcf)[\w.-]{0,20}?(?:api|global|auth)[_.-]?key|x-auth-key)[\s'"\]]{0,4}(?:=|:|=>|:=)[\s'"]{0,5}([a-f0-9]{37,45})(?:[^a-z0-9]|$)'''
 secretGroup = 1
 keywords = ["cloudflare", "cf_", "x-auth-key"]
 entropy = 3
@@ -234,7 +239,7 @@ entropy = 4
 [[rules]]
 id = "aws-secret-access-key"
 description = "Secret access key da AWS"
-regex = '''(?i)(?:aws)?[_.-]?secret[_.-]?(?:access)?[_.-]?key['"]?[\s'"]{0,3}(?:=|:|=>|:=)[\s'"]{0,5}([A-Za-z0-9/+]{40})(?:[^A-Za-z0-9/+=]|$)'''
+regex = '''(?i)(?:aws)?[_.-]?secret[_.-]?(?:access)?[_.-]?key['"]?[\s'"\]]{0,4}(?:=|:|=>|:=|\|)[\s'"]{0,5}([A-Za-z0-9/+]{40})(?:[^A-Za-z0-9/+=]|$)'''
 secretGroup = 1
 keywords = ["secret_access_key", "secretaccesskey", "secret-access-key", "aws_secret"]
 entropy = 4
@@ -265,7 +270,7 @@ entropy = 4
 [[rules]]
 id = "railway-token"
 description = "Token da Railway"
-regex = '''(?i)(?:railway[\w.-]{0,30}?(?:token|key|secret)[\w.-]{0,10}|project-access-token)[\s'"]{0,3}(?:=|:|=>|:=)[\s'"]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b'''
+regex = '''(?i)(?:railway[\w.-]{0,30}?(?:token|key|secret)[\w.-]{0,10}|project-access-token)[\s'"\]]{0,4}(?:=|:|=>|:=)[\s'"]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b'''
 secretGroup = 1
 keywords = ["railway", "project-access-token"]
 
@@ -285,42 +290,42 @@ keywords = ["pat-"]
 [[rules]]
 id = "pipedrive-api-token"
 description = "Token da API do Pipedrive"
-regex = '''(?i)(?:pipedrive[\w.-]{0,20}?(?:api[_.-]?)?(?:token|key)[\w.-]{0,10}?[\s'"]{0,3}(?:=|:|=>|:=|,)[\s'"]{0,5}([a-f0-9]{40})|x-api-token[\s'"]{0,3}:[\s'"]{0,3}([a-f0-9]{40})|pipedrive\.com/[^\s'"]*?[?&]api_token=([a-f0-9]{40}))(?:[\x60'"\s;&]|\\[nr]|$)'''
+regex = '''(?i)(?:pipedrive[\w.-]{0,20}?(?:api[_.-]?)?(?:token|key)[\w.-]{0,10}?[\s'"\]]{0,4}(?:=|:|=>|:=|,|\|)[\s'"]{0,5}([a-f0-9]{40})|x-api-token[\s'"\]]{0,4}:[\s'"\]]{0,4}([a-f0-9]{40})|pipedrive\.com/[^\s'"]*?[?&]api_token=([a-f0-9]{40}))(?:[\x60'"\s;&]|\\[nr]|$)'''
 keywords = ["pipedrive", "x-api-token"]
 entropy = 3
 
 [[rules]]
 id = "resend-api-key"
 description = "Chave do Resend"
-regex = '''\b(re_[1-9A-HJ-NP-Za-km-z]{8}_[1-9A-HJ-NP-Za-km-z]{24})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(re_[1-9A-HJ-NP-Za-km-z]{8}_[1-9A-HJ-NP-Za-km-z]{24})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 keywords = ["re_"]
 entropy = 3.5
 
 [[rules]]
 id = "sentry-app-integration-token"
 description = "Token de integração do Sentry"
-regex = '''\b(sntry[ai]_[a-f0-9]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(sntry[ai]_[a-f0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 keywords = ["sntrya_", "sntryi_"]
 entropy = 3.5
 
 [[rules]]
 id = "posthog-secret-key"
 description = "Chave secreta do PostHog (phx_/phs_)"
-regex = '''\b(ph[xsar]_[A-Za-z0-9_-]{40,52})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(ph[xsar]_[A-Za-z0-9_-]{40,52})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 keywords = ["phx_", "phs_", "pha_", "phr_"]
 entropy = 3.5
 
 [[rules]]
 id = "notion-legacy-secret"
 description = "Token do Notion (formato antigo secret_)"
-regex = '''\b(secret_[A-Za-z0-9]{43})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(secret_[A-Za-z0-9]{43})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 keywords = ["secret_"]
 entropy = 4
 
 [[rules]]
 id = "atlassian-api-token-v2"
 description = "Token da API da Atlassian"
-regex = '''\b(AT[AC]TT3[A-Za-z0-9_=-]{100,300}=[A-Za-z0-9]{8})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(AT[AC]TT3[A-Za-z0-9_=-]{100,300}=[A-Za-z0-9]{8})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 keywords = ["atatt3", "atctt3"]
 entropy = 3.5
 
@@ -334,14 +339,14 @@ entropy = 3.5
 [[rules]]
 id = "datadog-prefixed-key"
 description = "Chave do Datadog"
-regex = '''\b(ddapp_[A-Za-z0-9]{34}|dd(?:pat|sat)_[A-Za-z0-9]{8,40}_[A-Za-z0-9]{30,90})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(ddapp_[A-Za-z0-9]{34}|dd(?:pat|sat)_[A-Za-z0-9]{8,40}_[A-Za-z0-9]{30,90})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 keywords = ["ddapp_", "ddpat_", "ddsat_"]
 entropy = 3.5
 
 [[rules]]
 id = "datadog-api-app-key"
 description = "Chave do Datadog"
-regex = '''(?i)[\w.-]{0,50}?(?:datadog|\bdd)[_.-]?(?:api|app(?:lication)?)[_.-]?key(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{40}|[a-f0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:datadog|\bdd)[_.-]?(?:api|app(?:lication)?)[_.-]?key(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{40}|[a-f0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 secretGroup = 1
 keywords = ["datadog", "dd_api", "dd-api", "dd_app", "dd-app"]
 entropy = 3
@@ -349,7 +354,7 @@ entropy = 3
 [[rules]]
 id = "doppler-token"
 description = "Token do Doppler"
-regex = '''\b(dp\.(?:ct|pt|sa|said|scim|audit)\.[A-Za-z0-9]{40,44}|dp\.st\.(?:[a-z0-9_-]{2,35}\.)?[A-Za-z0-9]{40,44})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(dp\.(?:ct|pt|sa|said|scim|audit)\.[A-Za-z0-9]{40,44}|dp\.st\.(?:[a-z0-9_-]{2,35}\.)?[A-Za-z0-9]{40,44})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 keywords = ["dp.ct.", "dp.pt.", "dp.st.", "dp.sa.", "dp.said.", "dp.scim.", "dp.audit."]
 entropy = 3
 
@@ -407,7 +412,7 @@ entropy = 3.0
 [[rules]]
 id = "iugu-api-token"
 description = "Token da API da Iugu"
-regex = '''(?i)[\w.-]{0,50}?iugu(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{32,64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?iugu(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{32,64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 keywords = ["iugu"]
 [[rules.allowlists]]
 regexTarget = "match"
@@ -447,7 +452,7 @@ entropy = 4.0
 [[rules]]
 id = "twilio-auth-token"
 description = "Credencial do Twilio"
-regex = '''(?i)(?:twilio[\w.-]{0,20}(?:auth[_-]?token|secret)|auth_token|api_secret)["']?\s*[:=]\s*["']?([a-z0-9]{32})\b'''
+regex = '''(?i)(?:twilio[\w.-]{0,20}(?:auth[_-]?token|secret)|auth_token|api_secret)["'\]]{0,3}\s*[:=|]\s*["']?([a-z0-9]{32})\b'''
 keywords = ["twilio"]
 
 [[rules]]
@@ -465,7 +470,7 @@ keywords = ["twilio"]
 [[rules]]
 id = "composio-api-key"
 description = "Chave da Composio"
-regex = '''(?i)composio[\w.-]{0,30}[\s'"]{0,3}(?:=|:|=>)[\s'"]{0,5}(u?ak_[A-Za-z0-9_-]{16,})(?:[^A-Za-z0-9_-]|$)'''
+regex = '''(?i)composio[\w.-]{0,30}[\s'"\]]{0,4}(?:=|:|=>)[\s'"]{0,5}(u?ak_[A-Za-z0-9_-]{16,})(?:[^A-Za-z0-9_-]|$)'''
 secretGroup = 1
 keywords = ["composio"]
 entropy = 3
@@ -473,7 +478,7 @@ entropy = 3
 [[rules]]
 id = "openrouter-api-key"
 description = "Chave do OpenRouter"
-regex = '''\b(sk-or-v1-[0-9a-f]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(sk-or-v1-[0-9a-f]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 entropy = 3.0
 keywords = ["sk-or-v1-"]
 
@@ -482,7 +487,7 @@ keywords = ["sk-or-v1-"]
 [[rules]]
 id = "senha-no-codigo"
 description = "Senha escrita direto no código"
-regex = '''(?:(?i:\b(?:[\w.-]{0,40}[_.-])?(?:senha|password|passwd|pwd|passphrase)(?:[_.-][\w.-]{0,20})?)|\b[a-z][a-zA-Z0-9]{0,40}(?:Senha|Password|Passwd|Pwd|Passphrase)(?:[A-Z_][\w]{0,20})?)["']?\s*(?:=|:|:=|=>)\s*["'`]([^"'`\s]{8,128})["'`]'''
+regex = '''(?:(?i:\b(?:[\w.-]{0,40}[_.-])?(?:senha|password|passwd|pwd|passphrase)(?:[_.-][\w.-]{0,20})?)|\b[a-z][a-zA-Z0-9]{0,40}(?:Senha|Password|Passwd|Pwd|Passphrase)(?:[A-Z_][\w]{0,20})?)["'\]]{0,3}\s*(?:=|:|:=|=>)\s*["'`]([^"'`\s]{8,128})["'`]'''
 entropy = 3.0
 keywords = ["senha", "password", "passwd", "pwd", "passphrase"]
 [[rules.allowlists]]
@@ -509,7 +514,7 @@ paths = ['''(?i)(?:^|/)(?:tests?|__tests__|spec|specs|fixtures?|mocks?|e2e|cypre
 [[rules]]
 id = "chave-sk"
 description = "Chave de API no formato sk-… (hub LiteLLM da Seazone, OpenRouter, OpenAI, DeepSeek…)"
-regex = '''\b(sk-[A-Za-z0-9_-]{20,200})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(sk-[A-Za-z0-9_-]{20,200})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 entropy = 3.5
 keywords = ["sk-"]
 [[rules.allowlists]]
@@ -528,31 +533,31 @@ keywords = ["authorization", "key", "token", "secret", "password", "bearer"]
 [[rules]]
 id = "neon-senha"
 description = "Senha de banco do Neon (npg_)"
-regex = '''\b(npg_[A-Za-z0-9]{12,40})(?:[\x60'"\s;,)}\]@&/]|\\[nr]|$)'''
+regex = '''\b(npg_[A-Za-z0-9]{12,40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 keywords = ["npg_"]
 
 [[rules]]
 id = "smartsheet-token"
 description = "Token da API do Smartsheet"
-regex = '''(?i)smartsheet[\w.-]{0,40}?[\s'"\x60|]{0,5}(?:=|:|=>|:=|\||\()?[\s'"\x60|]{0,6}([a-z0-9]{26}|[a-z0-9]{37})(?:[\x60'"\s;,)}\]|]|\\[nr]|$)'''
+regex = '''(?i)smartsheet[\w.-]{0,40}?[\s'"\x60|\]]{0,6}(?:=|:|=>|:=|\||\()?[\s'"\x60|]{0,6}([a-z0-9]{26}|[a-z0-9]{37})(?:[\x60'"\s;,)}\]|]|\\[nr]|$)'''
 entropy = 3.0
 keywords = ["smartsheet"]
 
 [[rules]]
 id = "fal-api-key"
 description = "Chave da fal.ai (uuid:hex)"
-regex = '''\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 
 [[rules]]
 id = "honeycomb-api-key"
 description = "Chave da API do Honeycomb (hcaik_/hcxik_/hcamk_/hcxmk_)"
-regex = '''\b(hc[ax][im]k_[a-z0-9]{20,80})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(hc[ax][im]k_[a-z0-9]{20,80})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 keywords = ["hcaik_", "hcxik_", "hcamk_", "hcxmk_"]
 
 [[rules]]
 id = "honeycomb-api-key-classica"
 description = "Chave da API do Honeycomb (formato antigo, perto da palavra honeycomb)"
-regex = '''(?i)honeycomb[\w .:-]{0,40}?(?:key|token|chave)[\w .-]{0,10}?[\s'"\x60]{0,3}(?:=|:|=>|:=)?[\s'"\x60]{0,5}([a-z0-9]{22}|[a-f0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)honeycomb[\w .:-]{0,40}?(?:key|token|chave)[\w .-]{0,10}?[\s'"\x60]{0,3}(?:=|:|=>|:=)?[\s'"\x60]{0,5}([a-z0-9]{22}|[a-f0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 entropy = 3.0
 keywords = ["honeycomb"]
 
@@ -561,6 +566,416 @@ id = "cloudflare-terraform-provider"
 description = "Token da Cloudflare no provider do Terraform"
 regex = '''(?i)provider\s+"cloudflare"\s*\{[^}]{0,600}?\bapi_(?:token|key)\s*=\s*"([A-Za-z0-9_-]{37,40})"'''
 keywords = ["cloudflare"]
+
+# ============ MATRIZ DE COBERTURA (20/10: cada formato em cada lugar onde a chave aparece) ============
+
+[[rules]]
+id = "groq-api-key"
+description = "Chave da API da Groq"
+regex = '''\b(gsk_[A-Za-z0-9]{52})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["gsk_"]
+
+[[rules]]
+id = "deepl-api-key-free"
+description = "Chave da API do DeepL (plano gratuito, termina em :fx)"
+regex = '''\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:fx)(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = [":fx"]
+
+[[rules]]
+id = "deepl-api-key"
+description = "Chave da API do DeepL (perto da palavra deepl)"
+regex = '''(?i)deepl[\w .:-]{0,40}?(?:key|token|chave|auth)[\w .-]{0,10}?[\s'"\x60\]|]{0,5}(?:=|:|=>|:=|\|)?[\s'"\x60|]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["deepl"]
+
+[[rules]]
+id = "discord-webhook"
+description = "Webhook do Discord (quem tem a URL posta no canal)"
+regex = '''(https://(?:(?:ptb|canary)\.)?discord(?:app)?\.com/api/webhooks/\d{17,20}/[A-Za-z0-9_-]{60,80})'''
+keywords = ["discord"]
+
+[[rules]]
+id = "telegram-bot-token-formato"
+description = "Token de bot do Telegram (numero:AA...)"
+regex = '''\b(\d{8,10}:AA[A-Za-z0-9_-]{33})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = [":aa"]
+
+[[rules]]
+id = "resend-api-key"
+description = "Chave da API do Resend (re_)"
+regex = '''\b(re_[A-Za-z0-9]{8,}_[A-Za-z0-9]{20,})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+entropy = 3.5
+keywords = ["re_"]
+
+[[rules]]
+id = "senha-sem-aspas"
+description = "Senha sem aspas em .env, YAML, docker-compose ou properties"
+regex = '''(?im)^[ \t]*(?:-[ \t]+)?(?:export[ \t]+)?["']?[A-Za-z_][\w.-]{0,60}?(?:password|passwd|passphrase|senha|pwd)(?:[_.-]?\d{1,2})?["']?[ \t]*[=:][ \t]*([^\s'"\x60$#{<%][^\s'"\x60]{7,127})[ \t]*$'''
+secretGroup = 1
+entropy = 3.0
+keywords = ["password", "passwd", "passphrase", "senha", "pwd"]
+[[rules.allowlists]]
+description = "molde óbvio ou referência"
+regexes = [
+  '''(?i)^(?:password|senha|passwd|changeme|change_me|secret|segredo|example|exemplo|placeholder|dummy|fake|redacted|null|none|undefined|string|vazio|true|false)\d{0,3}$''',
+  '''(?i)(?:x{3,}|\*{3,}|\.{3,}|your[_-]|sua[_-]|seu[_-]|change[_-]?me|replace[_-]?me|insert[_-]|placeholder|example|exemplo)''',
+  '''(?-i)^[a-z]+://''',
+  '''(?-i)^(?:/|\./|~)''',
+]
+[[rules.allowlists]]
+description = "referência, não o valor: caminho do SSM, variável de ambiente, atributo de config, nome em maiúsculas, texto de exemplo"
+regexes = [
+  '''(?-i)^/''',
+  '''(?-i)^(?:process\.env|import\.meta\.env|os\.environ|os\.getenv|Deno\.env|settings|config|cfg|env|self|this|local|var|_s)\b''',
+  '''(?-i)^[a-z_][a-z0-9_]*(?:\??\.[A-Za-z_][A-Za-z0-9_]*)+[,;)]?$''',
+  '''(?-i)^[A-Z][A-Z0-9_]*=?$''',
+  '''(?-i)^[-_]?[a-z]+(?:[-_.][a-z]+)+[.(]?$''',
+  '''(?-i)^[a-z]{2,}(?:[A-Z][a-z]{2,})+[0-9]{0,2}[.(]?$''',
+  '''(?-i)^!|[(),;]$''',
+]
+[[rules.allowlists]]
+description = "nome que contém key mas não é chave"
+regexTarget = "match"
+regexes = ['''(?i)valkey''']
+[[rules.allowlists]]
+description = "senha de teste dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)\.github/workflows/|(?:^|/)[\w-]*e2e[\w-]*/|(?:^|/)(?:tests?|__tests__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
+
+[[rules]]
+id = "metabase-api-key"
+description = "Chave da API do Metabase (mb_)"
+regex = '''\b(mb_[A-Za-z0-9+/]{40,48}={0,2})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+entropy = 3.5
+keywords = ["mb_"]
+
+[[rules]]
+id = "onesignal-api-key"
+description = "Chave da API do OneSignal (os_v2_)"
+regex = '''\b(os_v2_(?:app|org)_[a-z0-9]{50,120})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["os_v2_"]
+
+[[rules]]
+id = "firecrawl-api-key"
+description = "Chave da API do Firecrawl (fc-)"
+regex = '''\b(fc-[a-f0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["fc-"]
+
+[[rules]]
+id = "tavily-api-key"
+description = "Chave da API do Tavily (tvly-)"
+regex = '''\b(tvly-(?:dev-|prod-)?[A-Za-z0-9]{24,48})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["tvly-"]
+
+[[rules]]
+id = "nvidia-api-key"
+description = "Chave da API da NVIDIA (nvapi-)"
+regex = '''\b(nvapi-[A-Za-z0-9_-]{60,70})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["nvapi-"]
+
+[[rules]]
+id = "elevenlabs-api-key"
+description = "Chave da API da ElevenLabs (sk_ + 48 hex)"
+regex = '''\b(sk_[a-f0-9]{48})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["sk_"]
+
+[[rules]]
+id = "langfuse-secret-key"
+description = "Chave secreta do Langfuse (sk-lf-)"
+regex = '''\b(sk-lf-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["sk-lf-"]
+
+[[rules]]
+id = "vercel-blob-token"
+description = "Token de escrita do Vercel Blob"
+regex = '''\b(vercel_blob_rw_[A-Za-z0-9_]{30,80})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["vercel_blob_rw_"]
+
+[[rules]]
+id = "senha-de-app-google"
+description = "Senha de app do Google/Gmail (16 letras)"
+regex = '''(?i)(?:app[_ .-]?pass(?:word)?|senha[_ .-]?(?:de[_ .-]?)?app|gmail[\w.-]{0,20}?pass(?:word)?)[\w.-]{0,20}?["'\]]{0,3}[ \t]*(?:=|:|=>|:=|\|)[ \t]*["'\x60]?((?:[a-z]{4} ){3}[a-z]{4}|[a-z]{16})["'\x60]?(?:[\s;,)}\]|]|$)'''
+entropy = 3.0
+keywords = ["app_pass", "app pass", "apppass", "app-pass", "app.pass", "senha", "gmail"]
+[[rules.allowlists]]
+description = "dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)(?:tests?|__tests__|__fixtures__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
+
+[[rules]]
+id = "cloudflare-access-secret-antigo"
+description = "Secret do Cloudflare Access no formato antigo (64 hex)"
+regex = '''(?i)(?:cf[_-]?access[_-]?client[_-]?secret|access[_-]?client[_-]?secret)["'\]]{0,3}[ \t]*(?:=|:|=>|:=|\|)[ \t]*["'\x60]?([a-f0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["client_secret", "client-secret"]
+[[rules.allowlists]]
+description = "dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)(?:tests?|__tests__|__fixtures__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
+
+[[rules]]
+id = "slack-signing-secret"
+description = "Signing secret do Slack"
+regex = '''(?i)slack[\w.-]{0,20}?signing[_.-]?secret["'\]]{0,3}[ \t]*(?:=|:|=>|:=|\|)[ \t]*["'\x60]?([a-f0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["signing"]
+[[rules.allowlists]]
+description = "dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)(?:tests?|__tests__|__fixtures__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
+
+[[rules]]
+id = "meta-app-secret"
+description = "App secret da Meta (Facebook/WhatsApp/Instagram)"
+regex = '''(?i)(?:meta|facebook|fb|whatsapp|instagram)[\w.-]{0,20}?app[_.-]?secret["'\]]{0,3}[ \t]*(?:=|:|=>|:=|\|)[ \t]*["'\x60]?([a-f0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["secret"]
+[[rules.allowlists]]
+description = "dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)(?:tests?|__tests__|__fixtures__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
+
+[[rules]]
+id = "chave-de-servico-da-seazone"
+description = "Chave de um serviço que a Seazone usa (formato sem prefixo, reconhecido pelo nome)"
+regex = '''(?i)\b[\w.-]{0,30}?(?:\b|[_.-])(?:nekt|stays|btg|clicksign|baserow|omie|z-?api|sapron|timelines|tuna|sieg|convenia|newbyte|pipefy|blip|rd[_-]?station|sienge|minimax|lovable|fleet|keycloak|sia|spotsys|olimpo|oraculo|alfred|taskdex|seazone)[\w.-]{0,30}?(?:token|key|secret|chave|senha|password|passwd|auth|credential)[\w.-]{0,15}?["'\]]{0,3}[ \t]*(?:=|:|=>|:=|\|)[ \t]*["'\x60]?(?:Bearer\s+)?([A-Za-z0-9_\-+/=.:]{20,300})["'\x60]?(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+secretGroup = 1
+entropy = 3.0  # hex de 32 tem no máximo 4,0 e às vezes fica abaixo de 3,5: perderia chave real
+keywords = ["nekt", "stays", "btg", "clicksign", "baserow", "omie", "zapi", "z-api", "sapron", "timelines", "tuna", "sieg", "convenia", "newbyte", "pipefy", "blip", "rd_station", "rd-station", "rdstation", "sienge", "minimax", "lovable", "fleet", "keycloak", "sia", "spotsys", "olimpo", "oraculo", "alfred", "taskdex", "seazone"]
+[[rules.allowlists]]
+description = "molde, referência ou valor público"
+regexes = [
+  '''(?i)^(?:\$|\{|<|%)''',
+  '''(?i)(?:x{3,}|\*{3,}|\.{3,}|your[_-]|sua[_-]|seu[_-]|change[_-]?me|replace[_-]?me|insert[_-]|placeholder|example|exemplo|dummy|fake)''',
+  '''(?-i)^[A-Z][A-Z0-9_]*$''',
+  '''(?-i)^[a-z]+://''',
+  '''(?-i)^(?:sb_publishable_|phc_|pk_(?:live|test)_)''',
+  '''(?-i)\.ey[A-Za-z0-9_-]*(?:InJvbGUiOiJhbm9uI|Jyb2xlIjoiYW5vbi|icm9sZSI6ImFub24i)''',
+]
+[[rules.allowlists]]
+description = "dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)(?:tests?|__tests__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
+[[rules.allowlists]]
+description = "referência, não o valor: caminho do SSM, variável de ambiente, atributo de config, nome em maiúsculas, texto de exemplo"
+regexes = [
+  '''(?-i)^/''',
+  '''(?-i)^(?:process\.env|import\.meta\.env|os\.environ|os\.getenv|Deno\.env|settings|config|cfg|env|self|this|local|var|_s)\b''',
+  '''(?-i)^[a-z_][a-z0-9_]*(?:\??\.[A-Za-z_][A-Za-z0-9_]*)+[,;)]?$''',
+  '''(?-i)^[A-Z][A-Z0-9_]*=?$''',
+  '''(?-i)^[-_]?[a-z]+(?:[-_.][a-z]+)+[.(]?$''',
+  '''(?-i)^[a-z]{2,}(?:[A-Z][a-z]{2,})+[0-9]{0,2}[.(]?$''',
+  '''(?-i)^!|[(),;]$''',
+]
+[[rules.allowlists]]
+description = "nome que contém key mas não é chave"
+regexTarget = "match"
+regexes = ['''(?i)valkey''']
+
+[[rules]]
+id = "github-app-token-novo"
+description = "Token de instalação de GitHub App no formato novo (ghs_<app>_<JWT>, desde 04/2026; é o GITHUB_TOKEN do Actions)"
+regex = '''\b(ghs_\d{1,12}_[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["ghs_"]
+
+[[rules]]
+id = "neon-api-key"
+description = "Chave da API do Neon (napi_)"
+regex = '''\b(napi_[A-Za-z0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["napi_"]
+
+[[rules]]
+id = "xai-api-key"
+description = "Chave da API da xAI (xai-)"
+regex = '''\b(xai-[A-Za-z0-9]{70,120})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["xai-"]
+
+[[rules]]
+id = "jina-api-key"
+description = "Chave da API da Jina (jina_)"
+regex = '''\b(jina_[A-Za-z0-9_-]{55,80})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["jina_"]
+
+[[rules]]
+id = "langsmith-api-key"
+description = "Chave da API do LangSmith (lsv2_)"
+regex = '''\b(lsv2_(?:pt|sk)_[a-f0-9]{32}_[a-f0-9]{10})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["lsv2_"]
+
+[[rules]]
+id = "pinecone-api-key"
+description = "Chave da API do Pinecone (pcsk_)"
+regex = '''\b(pcsk_[A-Za-z0-9]{4,10}_[A-Za-z0-9]{50,80})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["pcsk_"]
+
+[[rules]]
+id = "replicate-api-token"
+description = "Token da API do Replicate (r8_)"
+regex = '''\b(r8_[A-Za-z0-9]{37})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["r8_"]
+
+[[rules]]
+id = "slack-sessao"
+description = "Token de sessão ou cookie do Slack (xoxc-/xoxd-): dá acesso como a pessoa"
+regex = '''\b(xox[cd]-[A-Za-z0-9%-]{40,300})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["xoxc-", "xoxd-"]
+
+[[rules]]
+id = "zapier-webhook"
+description = "Webhook do Zapier (quem tem a URL dispara o zap)"
+regex = '''(https://hooks\.zapier\.com/hooks/catch/\d+/[A-Za-z0-9]+/?)'''
+keywords = ["hooks.zapier.com"]
+
+[[rules]]
+id = "elastic-api-key"
+description = "Chave da API da Elastic (essu_)"
+regex = '''\b(essu_[A-Za-z0-9+/=_-]{40,200})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["essu_"]
+
+[[rules]]
+id = "mailersend-api-key"
+description = "Chave da API da MailerSend (mlsn.)"
+regex = '''\b(mlsn\.[a-f0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["mlsn."]
+
+[[rules]]
+id = "zoho-token"
+description = "Token OAuth da Zoho (1000.hex.hex)"
+regex = '''\b(1000\.[a-f0-9]{32}\.[a-f0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["1000."]
+
+[[rules]]
+id = "clickup-api-token"
+description = "Token da API do ClickUp (pk_)"
+regex = '''\b(pk_\d{6,10}_[A-Z0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+keywords = ["pk_"]
+
+[[rules]]
+id = "azure-storage-account-key"
+description = "Chave de conta do Azure Storage (AccountKey=)"
+regex = '''(?i)AccountKey=([A-Za-z0-9+/]{86}==)'''
+keywords = ["accountkey="]
+
+[[rules]]
+id = "azure-shared-access-key"
+description = "Chave de acesso compartilhado do Azure (Service Bus/Event Hubs)"
+regex = '''(?i)SharedAccessKey=([A-Za-z0-9+/]{43}=)'''
+keywords = ["sharedaccesskey="]
+
+[[rules]]
+id = "azure-sas-token"
+description = "URL do Azure Storage com assinatura SAS (sig=)"
+regex = '''(?i)https://[\w.-]+\.(?:blob|file|queue|table|dfs)\.core\.windows\.net/[^\s'\"]*?[?&]sig=([A-Za-z0-9%+/]{30,}(?:%3D|=){0,2})'''
+keywords = ["windows.net"]
+
+[[rules]]
+id = "chave-por-nome-de-provedor"
+description = "Chave de API de um provedor conhecido, reconhecida pelo nome (formato sem prefixo)"
+regex = '''(?i)\b[\w.-]{0,30}?(?:\b|[_.-])(?:azure[_-]?openai|openai|anthropic|mistral|postmark|brave|deepseek|cohere|perplexity|together|fireworks|voyage|assemblyai|deepgram|elevenlabs|datadog|mailgun|mailchimp|mandrill|sendinblue|brevo|hubspot|intercom|zendesk|freshdesk|trello|asana|monday|airtable|typeform|shopify|vtex|bling|algolia|mapbox|twilio|vonage|zenvia|onesignal|firebase[_-]?server|fcm[_-]?server|apple|google[_-]?maps|recaptcha[_-]?secret|hcaptcha[_-]?secret)[\w.-]{0,30}?(?:token|key|secret|chave|password|auth)[\w.-]{0,15}?["'\]]{0,3}[ \t]*(?:=|:|=>|:=|\|)[ \t]*["'\x60]?(?:Bearer\s+)?([A-Za-z0-9_\-+/=.:]{16,300})[\"'\x60]?(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+entropy = 3.0  # hex de 32 tem no máximo 4,0 e às vezes fica abaixo de 3,5: perderia chave real
+keywords = ["openai", "anthropic", "mistral", "postmark", "brave", "deepseek", "cohere", "perplexity", "together", "fireworks", "voyage", "assemblyai", "deepgram", "elevenlabs", "datadog", "mailgun", "mailchimp", "mandrill", "sendinblue", "brevo", "hubspot", "intercom", "zendesk", "freshdesk", "trello", "asana", "monday", "airtable", "typeform", "shopify", "vtex", "bling", "algolia", "mapbox", "twilio", "vonage", "zenvia", "onesignal", "firebase", "fcm", "apple", "maps", "recaptcha", "hcaptcha"]
+[[rules.allowlists]]
+description = "referência ou molde, não o valor"
+regexes = [
+  '''(?-i)^(?:\$|\{|<|%|/)''',
+  '''(?-i)^(?:process\.env|import\.meta\.env|os\.environ|os\.getenv|Deno\.env|settings|config|cfg|env|self|this|local|var|_s)\b''',
+  '''(?-i)^[a-z_][a-z0-9_]*(?:\??\.[A-Za-z_][A-Za-z0-9_]*)+[,;)]?$''',
+  '''(?-i)^[A-Z][A-Z0-9_]*=?$''',
+  '''(?-i)^[-_]?[a-z]+(?:[-_.][a-z]+)+[.(]?$''',
+  '''(?-i)^[a-z]{2,}(?:[A-Z][a-z]{2,})+[0-9]{0,2}[.(]?$''',
+  '''(?i)(?:x{3,}|\*{3,}|\.{3,}|your[_-]|sua[_-]|seu[_-]|change[_-]?me|replace[_-]?me|insert[_-]|placeholder|example|exemplo|dummy|fake)''',
+]
+[[rules.allowlists]]
+description = "dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)(?:tests?|__tests__|__fixtures__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
+[[rules.allowlists]]
+description = "nome que só descreve ou é público (id, url, chave de site, chave publicável)"
+regexTarget = "match"
+regexes = ['''(?i)(?:_ID|_URL|_URI|_NAME|_HOST|_DOMAIN|_REGION|PUBLISHABLE|PUBLIC|SITE_KEY|SITEKEY|_TTL|_HEADER)[\w.-]{0,15}?["'\]]{0,3}[ \t]*(?:=|:|=>|:=|\|)''']
+
+[[rules]]
+id = "par-nome-valor"
+description = "Segredo em par nome/valor (coleção do Postman, captura HAR, log de requisição)"
+regex = '''(?i)"(?:key|name)"\s*:\s*"[\w.-]{0,40}?(?:api[_-]?key|token|secret|password|senha|authorization|auth|access[_-]?key|client[_-]?secret|cookie|session)[\w.-]{0,20}"\s*,\s*"value"\s*:\s*"((?:Bearer\s+|Basic\s+)?[^"\s]{12,500})\"'''
+entropy = 3.0  # hex de 32 tem no máximo 4,0 e às vezes fica abaixo de 3,5: perderia chave real
+keywords = ["value"]
+[[rules.allowlists]]
+description = "variável do Postman ({{nome}}) ou molde"
+regexes = ['''(?i)^(?:Bearer\s+|Basic\s+)?\{\{''', '''(?i)(?:x{3,}|\*{3,}|your[_-]|placeholder|example|exemplo|<[^>]+>)''']
+[[rules.allowlists]]
+description = "dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)(?:tests?|__tests__|__fixtures__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
+
+[[rules]]
+id = "generico-em-portugues"
+description = "Chave ou segredo com nome em português (chave, segredo, credencial)"
+tags = ["suspeita"]
+regex = '''(?i)\b[\w.-]{0,40}?(?:chave|segredo|credencial|token[_-]?de[_-]?acesso)[\w.-]{0,20}?["'\]]{0,3}[ \t]*(?:=|:|=>|:=|\|)[ \t]*["'\x60]?([A-Za-z0-9_\-+/=.:!@#$%^&*]{16,200})[\"'\x60]?(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
+entropy = 3.5
+keywords = ["chave", "segredo", "credencial", "token_de_acesso", "token-de-acesso"]
+[[rules.allowlists]]
+description = "referência ou molde, não o valor"
+regexes = [
+  '''(?-i)^(?:\$|\{|<|%|/)''',
+  '''(?-i)^(?:process\.env|import\.meta\.env|os\.environ|os\.getenv|Deno\.env|settings|config|cfg|env|self|this|local|var|_s)\b''',
+  '''(?-i)^[a-z_][a-z0-9_]*(?:\??\.[A-Za-z_][A-Za-z0-9_]*)+[,;)]?$''',
+  '''(?-i)^[A-Z][A-Z0-9_]*=?$''',
+  '''(?-i)^[-_]?[a-z]+(?:[-_.][a-z]+)+[.(]?$''',
+  '''(?-i)^[a-z]{2,}(?:[A-Z][a-z]{2,})+[0-9]{0,2}[.(]?$''',
+  '''(?i)(?:x{3,}|\*{3,}|\.{3,}|your[_-]|sua[_-]|seu[_-]|change[_-]?me|replace[_-]?me|insert[_-]|placeholder|example|exemplo|dummy|fake)''',
+]
+[[rules.allowlists]]
+description = "valor sem dígito é nome de campo ou texto, não chave"
+regexes = ['''(?-i)^[A-Za-z_/.\-]+$''']
+[[rules.allowlists]]
+description = "dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)(?:tests?|__tests__|__fixtures__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
+
+[[rules]]
+id = "segredo-em-arquivo-env"
+description = "Chave, token ou senha num arquivo .env versionado"
+path = '''(?i)(?:^|/)(?:\.env(?:\.[\w-]+)?|[\w-]+\.env)$'''
+regex = '''(?im)^[ \t]*(?:export[ \t]+)?["']?[A-Za-z_][\w.-]{0,60}?(?:key|token|secret|senha|password|passwd|pwd|credential|auth|dsn)(?:[_.-]?\d{1,2})?["']?[ \t]*=[ \t]*["']?([^\s'"\x60$#{<%][^\s'"\x60]{11,300})["']?[ \t]*$'''
+secretGroup = 1
+entropy = 3.0  # hex de 32 tem no máximo 4,0 e às vezes fica abaixo de 3,5: perderia chave real
+[[rules.allowlists]]
+description = "arquivo de exemplo (.env.example, .env.sample...)"
+paths = ['''(?i)\.(?:example|sample|template|dist|defaults?|modelo|exemplo)$''']
+[[rules.allowlists]]
+description = "variável de frontend (tem regra própria) e valor público ou molde"
+regexTarget = "line"
+regexes = ['''(?i)^[ \t]*(?:export[ \t]+)?["']?(?:VITE|NEXT_PUBLIC|REACT_APP|EXPO_PUBLIC|PUBLIC)_''', '''(?i)(?:SITE_?KEY|PUBLISHABLE|PUBLIC_KEY|ANON_KEY|_ID|_URL|_URI|_HOST|_NAME)["']?[ \t]*=''']
+[[rules.allowlists]]
+description = "valor público, URL, referência ou molde"
+regexes = [
+  '''(?-i)^(?:sb_publishable_|phc_|pk_(?:live|test)_)''',
+  '''(?-i)\.ey[A-Za-z0-9_-]*(?:InJvbGUiOiJhbm9uI|Jyb2xlIjoiYW5vbi|icm9sZSI6ImFub24i)''',
+  '''(?i)^[a-z][a-z0-9+.-]*://''',
+  '''(?i)(?:x{3,}|\*{3,}|\.{3,}|your[_-]|sua[_-]|seu[_-]|change[_-]?me|replace[_-]?me|insert[_-]|placeholder|example|exemplo|dummy|fake)''',
+]
+[[rules.allowlists]]
+description = "referência, não o valor: caminho do SSM, variável de ambiente, atributo de config, nome em maiúsculas, texto de exemplo"
+regexes = [
+  '''(?-i)^/''',
+  '''(?-i)^(?:process\.env|import\.meta\.env|os\.environ|os\.getenv|Deno\.env|settings|config|cfg|env|self|this|local|var|_s)\b''',
+  '''(?-i)^[a-z_][a-z0-9_]*(?:\??\.[A-Za-z_][A-Za-z0-9_]*)+[,;)]?$''',
+  '''(?-i)^[A-Z][A-Z0-9_]*=?$''',
+  '''(?-i)^[-_]?[a-z]+(?:[-_.][a-z]+)+[.(]?$''',
+  '''(?-i)^[a-z]{2,}(?:[A-Z][a-z]{2,})+[0-9]{0,2}[.(]?$''',
+  '''(?-i)^!|[(),;]$''',
+]
+[[rules.allowlists]]
+description = "nome que contém key mas não é chave"
+regexTarget = "match"
+regexes = ['''(?i)valkey''']
+
+
+[[rules]]
+id = "senha-em-tabela"
+description = "Senha numa tabela em markdown (| NOME_DA_SENHA | valor |)"
+regex = '''(?i)\|[ \t]+\x60?[\w.-]{0,60}?(?:password|passwd|passphrase|senha|pwd)\x60?[ \t]+\|[ \t]+\x60?([^\s|\x60$#{<%][^\s|\x60]{7,127})\x60?[ \t]+\|'''
+secretGroup = 1
+entropy = 3.0
+keywords = ["password", "passwd", "passphrase", "senha", "pwd"]
+[[rules.allowlists]]
+description = "molde óbvio ou referência"
+regexes = [
+  '''(?i)^(?:password|senha|passwd|changeme|change_me|secret|segredo|example|exemplo|placeholder|dummy|fake|redacted|null|none|undefined|string|vazio|true|false)\d{0,3}$''',
+  '''(?i)(?:x{3,}|\*{3,}|\.{3,}|your[_-]|sua[_-]|seu[_-]|change[_-]?me|replace[_-]?me|insert[_-]|placeholder|example|exemplo)''',
+]
+[[rules.allowlists]]
+description = "dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)(?:tests?|__tests__|__fixtures__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
 
 # ============ ARQUIVOS QUE NUNCA VÃO PRO GIT (pelo nome) ============
 
@@ -667,453 +1082,478 @@ description = "Variável pública (VITE_/NEXT_PUBLIC_/…) com nome de segredo: 
 regex = '''\b(?:VITE|NEXT_PUBLIC|REACT_APP|EXPO_PUBLIC)_[A-Z0-9_]*(?:SECRET|SERVICE_ROLE|PRIVATE|PASSWORD|PASSWD)[A-Z0-9_]*["']?\s*[=:]\s*["']?([^\s"'$]{8,})'''
 keywords = ["vite_", "next_public_", "react_app_", "expo_public_"]
 
+[[rules]]
+id = "variavel-publica-com-chave"
+description = "Chave de API em variável de frontend (VITE_/NEXT_PUBLIC_/…): todo visitante do site recebe o valor"
+tags = ["suspeita"]
+regex = '''\b(?:VITE|NEXT_PUBLIC|REACT_APP|EXPO_PUBLIC)_[A-Z0-9_]*(?:API_KEY|TOKEN|ACCESS_KEY|AUTH_KEY|CLIENT_SECRET)[A-Z0-9_]*["']?\s*[=:]\s*["']?([^\s"'$]{12,})'''
+entropy = 3.0
+keywords = ["vite_", "next_public_", "react_app_", "expo_public_"]
+[[rules.allowlists]]
+description = "variáveis públicas por natureza (chave anon, publishable, de site, de mapa, de analytics)"
+regexTarget = "line"
+regexes = ['''(?i)(?:ANON|PUBLISHABLE|PUBLIC_KEY|SITE_KEY|MAPS|MAPBOX|FIREBASE|POSTHOG|SENTRY|DSN|MEASUREMENT|GA_|GTM|RECAPTCHA|AMPLITUDE|MIXPANEL|SEGMENT|HOTJAR|CLARITY|INTERCOM|CRISP|ONESIGNAL_APP_ID|STRIPE_PK|STRIPE_PUBLISHABLE)''']
+[[rules.allowlists]]
+description = "valor público pelo formato"
+regexes = ['''^(?:pk_(?:live|test)_|phc_|sb_publishable_)''']
+[[rules.allowlists]]
+description = "dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)(?:tests?|__tests__|__fixtures__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
+[[rules.allowlists]]
+description = "arquivo de exemplo (.env.example, .env.dist...) ou nome que só descreve"
+paths = ['''(?i)\.(?:example|sample|template|dist|defaults?|modelo|exemplo)$''']
+[[rules.allowlists]]
+description = "nome que só descreve (TTL, URL...) ou valor que é referência"
+regexTarget = "line"
+regexes = ['''(?i)_(?:TTL|EXPIRES?|EXPIRATION|URL|URI|NAME|ID|HEADER|TYPE|ENABLED)["']?\s*[=:]''', '''(?i)(?:import\.meta\.env|process\.env)\.''']
+
 # ============ CORREÇÃO DO FIM DA CHAVE (gerado) ============
 # Nas regras padrão, a chave só casava se viesse seguida de aspas, espaço, ; ou fim de linha.
-# Aqui aceitamos também ) , } ] (ex.: createClient(url, CHAVE)). Gerado de gitleaks 8.30.1.
+# Aqui aceitamos também ) , } ] & < > | # * . ! ? \ / @ : depois da chave, e | ou ] antes do sinal. Gerado de gitleaks 8.30.1.
 [[rules]]
 id = "adafruit-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:adafruit)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9_-]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:adafruit)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9_-]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "adobe-client-id"
-regex = '''(?i)[\w.-]{0,50}?(?:adobe)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:adobe)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "adobe-client-secret"
-regex = '''\b(p8e-(?i)[a-z0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(p8e-(?i)[a-z0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "airtable-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:airtable)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{17})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:airtable)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{17})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "algolia-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:algolia)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:algolia)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "alibaba-access-key-id"
-regex = '''\b(LTAI(?i)[a-z0-9]{20})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(LTAI(?i)[a-z0-9]{20})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "alibaba-secret-key"
-regex = '''(?i)[\w.-]{0,50}?(?:alibaba)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{30})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:alibaba)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{30})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "anthropic-admin-api-key"
-regex = '''\b(sk-ant-admin01-[a-zA-Z0-9_\-]{93}AA)(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(sk-ant-admin01-[a-zA-Z0-9_\-]{93}AA)(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "anthropic-api-key"
-regex = '''\b(sk-ant-api03-[a-zA-Z0-9_\-]{93}AA)(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(sk-ant-api03-[a-zA-Z0-9_\-]{93}AA)(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "asana-client-id"
-regex = '''(?i)[\w.-]{0,50}?(?:asana)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9]{16})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:asana)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9]{16})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "asana-client-secret"
-regex = '''(?i)[\w.-]{0,50}?(?:asana)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:asana)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "atlassian-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:(?-i:ATLASSIAN|[Aa]tlassian)|(?-i:CONFLUENCE|[Cc]onfluence)|(?-i:JIRA|[Jj]ira))(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{20}[a-f0-9]{4})(?:[\x60'"\s;,)}\]]|\\[nr]|$)|\b(ATATT3[A-Za-z0-9_\-=]{186})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:(?-i:ATLASSIAN|[Aa]tlassian)|(?-i:CONFLUENCE|[Cc]onfluence)|(?-i:JIRA|[Jj]ira))(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{20}[a-f0-9]{4})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)|\b(ATATT3[A-Za-z0-9_\-=]{186})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "authress-service-client-access-key"
-regex = '''\b((?:sc|ext|scauth|authress)_(?i)[a-z0-9]{5,30}\.[a-z0-9]{4,6}\.(?-i:acc)[_-][a-z0-9-]{10,32}\.[a-z0-9+/_=-]{30,120})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b((?:sc|ext|scauth|authress)_(?i)[a-z0-9]{5,30}\.[a-z0-9]{4,6}\.(?-i:acc)[_-][a-z0-9-]{10,32}\.[a-z0-9+/_=-]{30,120})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "aws-amazon-bedrock-api-key-long-lived"
-regex = '''\b(ABSK[A-Za-z0-9+/]{109,269}={0,2})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(ABSK[A-Za-z0-9+/]{109,269}={0,2})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "beamer-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:beamer)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(b_[a-z0-9=_\-]{44})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:beamer)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(b_[a-z0-9=_\-]{44})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "bitbucket-client-id"
-regex = '''(?i)[\w.-]{0,50}?(?:bitbucket)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:bitbucket)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "bitbucket-client-secret"
-regex = '''(?i)[\w.-]{0,50}?(?:bitbucket)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:bitbucket)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "bittrex-access-key"
-regex = '''(?i)[\w.-]{0,50}?(?:bittrex)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:bittrex)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "bittrex-secret-key"
-regex = '''(?i)[\w.-]{0,50}?(?:bittrex)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:bittrex)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "cisco-meraki-api-key"
-regex = '''[\w.-]{0,50}?(?i:[\w.-]{0,50}?(?:(?-i:[Mm]eraki|MERAKI))(?:[ \t\w.-]{0,20})[\s'"]{0,3})(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''[\w.-]{0,50}?(?i:[\w.-]{0,50}?(?:(?-i:[Mm]eraki|MERAKI))(?:[ \t\w.-]{0,20})[\s'"\]]{0,4})(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "cloudflare-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:cloudflare)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9_-]{40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:cloudflare)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9_-]{40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "cloudflare-global-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:cloudflare)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{37})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:cloudflare)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{37})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "cloudflare-origin-ca-key"
-regex = '''\b(v1\.0-[a-f0-9]{24}-[a-f0-9]{146})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(v1\.0-[a-f0-9]{24}-[a-f0-9]{146})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "codecov-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:codecov)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:codecov)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "cohere-api-token"
-regex = '''[\w.-]{0,50}?(?i:[\w.-]{0,50}?(?:cohere|CO_API_KEY)(?:[ \t\w.-]{0,20})[\s'"]{0,3})(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-zA-Z0-9]{40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''[\w.-]{0,50}?(?i:[\w.-]{0,50}?(?:cohere|CO_API_KEY)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4})(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-zA-Z0-9]{40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "coinbase-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:coinbase)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9_-]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:coinbase)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9_-]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "confluent-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:confluent)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{16})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:confluent)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{16})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "confluent-secret-key"
-regex = '''(?i)[\w.-]{0,50}?(?:confluent)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:confluent)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "contentful-delivery-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:contentful)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{43})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:contentful)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{43})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "databricks-api-token"
-regex = '''\b(dapi[a-f0-9]{32}(?:-\d)?)(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(dapi[a-f0-9]{32}(?:-\d)?)(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "datadog-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:datadog)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:datadog)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "defined-networking-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:dnkey)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(dnkey-[a-z0-9=_\-]{26}-[a-z0-9=_\-]{52})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:dnkey)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(dnkey-[a-z0-9=_\-]{26}-[a-z0-9=_\-]{52})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "digitalocean-access-token"
-regex = '''\b(doo_v1_[a-f0-9]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(doo_v1_[a-f0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "digitalocean-pat"
-regex = '''\b(dop_v1_[a-f0-9]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(dop_v1_[a-f0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "digitalocean-refresh-token"
-regex = '''(?i)\b(dor_v1_[a-f0-9]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)\b(dor_v1_[a-f0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "discord-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:discord)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:discord)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "discord-client-id"
-regex = '''(?i)[\w.-]{0,50}?(?:discord)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9]{18})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:discord)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9]{18})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "discord-client-secret"
-regex = '''(?i)[\w.-]{0,50}?(?:discord)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:discord)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "droneci-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:droneci)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:droneci)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "dropbox-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:dropbox)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{15})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:dropbox)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{15})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "dropbox-long-lived-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:dropbox)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{11}(AAAAAAAAAA)[a-z0-9\-_=]{43})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:dropbox)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{11}(AAAAAAAAAA)[a-z0-9\-_=]{43})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "dropbox-short-lived-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:dropbox)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(sl\.[a-z0-9\-=_]{135})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:dropbox)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(sl\.[a-z0-9\-=_]{135})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "etsy-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:(?-i:ETSY|[Ee]tsy))(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{24})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:(?-i:ETSY|[Ee]tsy))(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{24})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "facebook-access-token"
-regex = '''(?i)\b(\d{15,16}(\||%)[0-9a-z\-_]{27,40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)\b(\d{15,16}(\||%)[0-9a-z\-_]{27,40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "facebook-page-access-token"
-regex = '''\b(EAA[MC](?i)[a-z0-9]{100,})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(EAA[MC](?i)[a-z0-9]{100,})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "facebook-secret"
-regex = '''(?i)[\w.-]{0,50}?(?:facebook)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:facebook)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "fastly-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:fastly)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:fastly)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "finicity-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:finicity)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:finicity)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "finicity-client-secret"
-regex = '''(?i)[\w.-]{0,50}?(?:finicity)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{20})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:finicity)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{20})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "finnhub-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:finnhub)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{20})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:finnhub)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{20})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "flickr-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:flickr)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:flickr)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "flyio-access-token"
-regex = '''\b((?:fo1_[\w-]{43}|fm1[ar]_[a-zA-Z0-9+\/]{100,}={0,3}|fm2_[a-zA-Z0-9+\/]{100,}={0,3}))(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b((?:fo1_[\w-]{43}|fm1[ar]_[a-zA-Z0-9+\/]{100,}={0,3}|fm2_[a-zA-Z0-9+\/]{100,}={0,3}))(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "freshbooks-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:freshbooks)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:freshbooks)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "gcp-api-key"
-regex = '''\b(AIza[\w-]{35})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(AIza[\w-]{35})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "gitter-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:gitter)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9_-]{40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:gitter)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9_-]{40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "gocardless-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:gocardless)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(live_(?i)[a-z0-9\-_=]{40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:gocardless)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(live_(?i)[a-z0-9\-_=]{40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "grafana-api-key"
-regex = '''(?i)\b(eyJrIjoi[A-Za-z0-9]{70,400}={0,3})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)\b(eyJrIjoi[A-Za-z0-9]{70,400}={0,3})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "grafana-cloud-api-token"
-regex = '''(?i)\b(glc_[A-Za-z0-9+/]{32,400}={0,3})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)\b(glc_[A-Za-z0-9+/]{32,400}={0,3})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "grafana-service-account-token"
-regex = '''(?i)\b(glsa_[A-Za-z0-9]{32}_[A-Fa-f0-9]{8})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)\b(glsa_[A-Za-z0-9]{32}_[A-Fa-f0-9]{8})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "hashicorp-tf-password"
-regex = '''(?i)[\w.-]{0,50}?(?:administrator_login_password|password)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}("[a-z0-9=_\-]{8,20}")(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:administrator_login_password|password)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}("[a-z0-9=_\-]{8,20}")(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "heroku-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:heroku)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:heroku)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "heroku-api-key-v2"
-regex = '''\b((HRKU-AA[0-9a-zA-Z_-]{58}))(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b((HRKU-AA[0-9a-zA-Z_-]{58}))(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "hubspot-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:hubspot)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:hubspot)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "huggingface-access-token"
-regex = '''\b(hf_(?i:[a-z]{34}))(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(hf_(?i:[a-z]{34}))(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "huggingface-organization-api-token"
-regex = '''\b(api_org_(?i:[a-z]{34}))(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(api_org_(?i:[a-z]{34}))(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "infracost-api-token"
-regex = '''\b(ico-[a-zA-Z0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(ico-[a-zA-Z0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "intercom-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:intercom)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{60})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:intercom)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{60})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "intra42-client-secret"
-regex = '''\b(s-s4t2(?:ud|af)-(?i)[abcdef0123456789]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(s-s4t2(?:ud|af)-(?i)[abcdef0123456789]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "jfrog-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:jfrog|artifactory|bintray|xray)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{73})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:jfrog|artifactory|bintray|xray)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{73})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "jfrog-identity-token"
-regex = '''(?i)[\w.-]{0,50}?(?:jfrog|artifactory|bintray|xray)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:jfrog|artifactory|bintray|xray)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "kraken-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:kraken)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9\/=_\+\-]{80,90})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:kraken)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9\/=_\+\-]{80,90})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "kucoin-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:kucoin)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{24})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:kucoin)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{24})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "kucoin-secret-key"
-regex = '''(?i)[\w.-]{0,50}?(?:kucoin)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:kucoin)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "launchdarkly-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:launchdarkly)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:launchdarkly)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "linear-client-secret"
-regex = '''(?i)[\w.-]{0,50}?(?:linear)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:linear)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "linkedin-client-id"
-regex = '''(?i)[\w.-]{0,50}?(?:linked[_-]?in)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{14})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:linked[_-]?in)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{14})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "linkedin-client-secret"
-regex = '''(?i)[\w.-]{0,50}?(?:linked[_-]?in)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{16})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:linked[_-]?in)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{16})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "lob-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:lob)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}((live|test)_[a-f0-9]{35})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:lob)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}((live|test)_[a-f0-9]{35})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "lob-pub-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:lob)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}((test|live)_pub_[a-f0-9]{31})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:lob)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}((test|live)_pub_[a-f0-9]{31})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "looker-client-id"
-regex = '''(?i)[\w.-]{0,50}?(?:looker)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{20})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:looker)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{20})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "looker-client-secret"
-regex = '''(?i)[\w.-]{0,50}?(?:looker)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{24})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:looker)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{24})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "mailchimp-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:MailchimpSDK.initialize|mailchimp)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{32}-us\d\d)(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:MailchimpSDK.initialize|mailchimp)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{32}-us\d\d)(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "mailgun-private-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:mailgun)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(key-[a-f0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:mailgun)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(key-[a-f0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "mailgun-pub-key"
-regex = '''(?i)[\w.-]{0,50}?(?:mailgun)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(pubkey-[a-f0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:mailgun)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(pubkey-[a-f0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "mailgun-signing-key"
-regex = '''(?i)[\w.-]{0,50}?(?:mailgun)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-h0-9]{32}-[a-h0-9]{8}-[a-h0-9]{8})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:mailgun)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-h0-9]{32}-[a-h0-9]{8}-[a-h0-9]{8})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "mapbox-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:mapbox)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(pk\.[a-z0-9]{60}\.[a-z0-9]{22})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:mapbox)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(pk\.[a-z0-9]{60}\.[a-z0-9]{22})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "mattermost-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:mattermost)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{26})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:mattermost)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{26})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "maxmind-license-key"
-regex = '''\b([A-Za-z0-9]{6}_[A-Za-z0-9]{29}_mmk)(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b([A-Za-z0-9]{6}_[A-Za-z0-9]{29}_mmk)(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "messagebird-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:message[_-]?bird)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{25})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:message[_-]?bird)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{25})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "messagebird-client-id"
-regex = '''(?i)[\w.-]{0,50}?(?:message[_-]?bird)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:message[_-]?bird)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "netlify-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:netlify)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{40,46})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:netlify)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{40,46})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "new-relic-browser-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:new-relic|newrelic|new_relic)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(NRJS-[a-f0-9]{19})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:new-relic|newrelic|new_relic)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(NRJS-[a-f0-9]{19})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "new-relic-insert-key"
-regex = '''(?i)[\w.-]{0,50}?(?:new-relic|newrelic|new_relic)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(NRII-[a-z0-9-]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:new-relic|newrelic|new_relic)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(NRII-[a-z0-9-]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "new-relic-user-api-id"
-regex = '''(?i)[\w.-]{0,50}?(?:new-relic|newrelic|new_relic)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:new-relic|newrelic|new_relic)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "new-relic-user-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:new-relic|newrelic|new_relic)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(NRAK-[a-z0-9]{27})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:new-relic|newrelic|new_relic)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(NRAK-[a-z0-9]{27})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "notion-api-token"
-regex = '''\b(ntn_[0-9]{11}[A-Za-z0-9]{32}[A-Za-z0-9]{3})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(ntn_[0-9]{11}[A-Za-z0-9]{32}[A-Za-z0-9]{3})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "npm-access-token"
-regex = '''(?i)\b(npm_[a-z0-9]{36})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)\b(npm_[a-z0-9]{36})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "nytimes-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:nytimes|new-york-times,|newyorktimes)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:nytimes|new-york-times,|newyorktimes)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9=_\-]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "octopus-deploy-api-key"
-regex = '''\b(API-[A-Z0-9]{26})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(API-[A-Z0-9]{26})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "okta-access-token"
-regex = '''[\w.-]{0,50}?(?i:[\w.-]{0,50}?(?:(?-i:[Oo]kta|OKTA))(?:[ \t\w.-]{0,20})[\s'"]{0,3})(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(00[\w=\-]{40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''[\w.-]{0,50}?(?i:[\w.-]{0,50}?(?:(?-i:[Oo]kta|OKTA))(?:[ \t\w.-]{0,20})[\s'"\]]{0,4})(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(00[\w=\-]{40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "openai-api-key"
-regex = '''\b(sk-(?:proj|svcacct|admin)-(?:[A-Za-z0-9_-]{74}|[A-Za-z0-9_-]{58})T3BlbkFJ(?:[A-Za-z0-9_-]{74}|[A-Za-z0-9_-]{58})\b|sk-[a-zA-Z0-9]{20}T3BlbkFJ[a-zA-Z0-9]{20})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(sk-(?:proj|svcacct|admin)-(?:[A-Za-z0-9_-]{74}|[A-Za-z0-9_-]{58})T3BlbkFJ(?:[A-Za-z0-9_-]{74}|[A-Za-z0-9_-]{58})\b|sk-[a-zA-Z0-9]{20}T3BlbkFJ[a-zA-Z0-9]{20})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "plaid-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:plaid)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(access-(?:sandbox|development|production)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:plaid)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(access-(?:sandbox|development|production)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "plaid-client-id"
-regex = '''(?i)[\w.-]{0,50}?(?:plaid)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{24})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:plaid)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{24})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "plaid-secret-key"
-regex = '''(?i)[\w.-]{0,50}?(?:plaid)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{30})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:plaid)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{30})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "planetscale-api-token"
-regex = '''\b(pscale_tkn_(?i)[\w=\.-]{32,64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(pscale_tkn_(?i)[\w=\.-]{32,64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "planetscale-oauth-token"
-regex = '''\b(pscale_oauth_[\w=\.-]{32,64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(pscale_oauth_[\w=\.-]{32,64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "planetscale-password"
-regex = '''(?i)\b(pscale_pw_(?i)[\w=\.-]{32,64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)\b(pscale_pw_(?i)[\w=\.-]{32,64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "postman-api-token"
-regex = '''\b(PMAK-(?i)[a-f0-9]{24}\-[a-f0-9]{34})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(PMAK-(?i)[a-f0-9]{24}\-[a-f0-9]{34})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "prefect-api-token"
-regex = '''\b(pnu_[a-zA-Z0-9]{36})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(pnu_[a-zA-Z0-9]{36})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "privateai-api-token"
-regex = '''[\w.-]{0,50}?(?i:[\w.-]{0,50}?(?:private[_-]?ai)(?:[ \t\w.-]{0,20})[\s'"]{0,3})(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''[\w.-]{0,50}?(?i:[\w.-]{0,50}?(?:private[_-]?ai)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4})(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{32})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "pulumi-api-token"
-regex = '''\b(pul-[a-f0-9]{40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(pul-[a-f0-9]{40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "rapidapi-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:rapidapi)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9_-]{50})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:rapidapi)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9_-]{50})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "readme-api-token"
-regex = '''\b(rdme_[a-z0-9]{70})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(rdme_[a-z0-9]{70})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "rubygems-api-token"
-regex = '''\b(rubygems_[a-f0-9]{48})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(rubygems_[a-f0-9]{48})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "scalingo-api-token"
-regex = '''\b(tk-us-[\w-]{48})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(tk-us-[\w-]{48})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "sendbird-access-id"
-regex = '''(?i)[\w.-]{0,50}?(?:sendbird)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:sendbird)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "sendbird-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:sendbird)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:sendbird)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "sendgrid-api-token"
-regex = '''\b(SG\.(?i)[a-z0-9=_\-\.]{66})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(SG\.(?i)[a-z0-9=_\-\.]{66})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "sendinblue-api-token"
-regex = '''\b(xkeysib-[a-f0-9]{64}\-(?i)[a-z0-9]{16})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(xkeysib-[a-f0-9]{64}\-(?i)[a-z0-9]{16})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "sentry-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:sentry)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:sentry)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "sentry-user-token"
-regex = '''\b(sntryu_[a-f0-9]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(sntryu_[a-f0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "settlemint-application-access-token"
-regex = '''\b(sm_aat_[a-zA-Z0-9]{16})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(sm_aat_[a-zA-Z0-9]{16})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "settlemint-personal-access-token"
-regex = '''\b(sm_pat_[a-zA-Z0-9]{16})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(sm_pat_[a-zA-Z0-9]{16})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "settlemint-service-access-token"
-regex = '''\b(sm_sat_[a-zA-Z0-9]{16})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(sm_sat_[a-zA-Z0-9]{16})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "shippo-api-token"
-regex = '''\b(shippo_(?:live|test)_[a-fA-F0-9]{40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(shippo_(?:live|test)_[a-fA-F0-9]{40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "sidekiq-secret"
-regex = '''(?i)[\w.-]{0,50}?(?:BUNDLE_ENTERPRISE__CONTRIBSYS__COM|BUNDLE_GEMS__CONTRIBSYS__COM)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{8}:[a-f0-9]{8})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:BUNDLE_ENTERPRISE__CONTRIBSYS__COM|BUNDLE_GEMS__CONTRIBSYS__COM)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-f0-9]{8}:[a-f0-9]{8})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "snyk-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:snyk[_.-]?(?:(?:api|oauth)[_.-]?)?(?:key|token))(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:snyk[_.-]?(?:(?:api|oauth)[_.-]?)?(?:key|token))(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "sonar-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:sonar[_.-]?(login|token))(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}((?:squ_|sqp_|sqa_)?[a-z0-9=_\-]{40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:sonar[_.-]?(login|token))(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}((?:squ_|sqp_|sqa_)?[a-z0-9=_\-]{40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "sourcegraph-access-token"
-regex = '''(?i)\b(\b(sgp_(?:[a-fA-F0-9]{16}|local)_[a-fA-F0-9]{40}|sgp_[a-fA-F0-9]{40}|[a-fA-F0-9]{40})\b)(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)\b(\b(sgp_(?:[a-fA-F0-9]{16}|local)_[a-fA-F0-9]{40}|sgp_[a-fA-F0-9]{40}|[a-fA-F0-9]{40})\b)(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "square-access-token"
-regex = '''\b((?:EAAA|sq0atp-)[\w-]{22,60})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b((?:EAAA|sq0atp-)[\w-]{22,60})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "squarespace-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:squarespace)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:squarespace)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "stripe-access-token"
-regex = '''\b((?:sk|rk)_(?:test|live|prod)_[a-zA-Z0-9]{10,99})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b((?:sk|rk)_(?:test|live|prod)_[a-zA-Z0-9]{10,99})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "sumologic-access-id"
-regex = '''[\w.-]{0,50}?(?i:[\w.-]{0,50}?(?:(?-i:[Ss]umo|SUMO))(?:[ \t\w.-]{0,20})[\s'"]{0,3})(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(su[a-zA-Z0-9]{12})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''[\w.-]{0,50}?(?i:[\w.-]{0,50}?(?:(?-i:[Ss]umo|SUMO))(?:[ \t\w.-]{0,20})[\s'"\]]{0,4})(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(su[a-zA-Z0-9]{12})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "sumologic-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:(?-i:[Ss]umo|SUMO))(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{64})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:(?-i:[Ss]umo|SUMO))(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{64})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "telegram-bot-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:telegr)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9]{5,16}:(?-i:A)[a-z0-9_\-]{34})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:telegr)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9]{5,16}:(?-i:A)[a-z0-9_\-]{34})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "travisci-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:travis)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{22})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:travis)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{22})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "twitch-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:twitch)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{30})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:twitch)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{30})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "twitter-access-secret"
-regex = '''(?i)[\w.-]{0,50}?(?:twitter)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{45})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:twitter)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{45})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "twitter-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:twitter)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9]{15,25}-[a-zA-Z0-9]{20,40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:twitter)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([0-9]{15,25}-[a-zA-Z0-9]{20,40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "twitter-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:twitter)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{25})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:twitter)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{25})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "twitter-api-secret"
-regex = '''(?i)[\w.-]{0,50}?(?:twitter)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{50})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:twitter)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{50})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "twitter-bearer-token"
-regex = '''(?i)[\w.-]{0,50}?(?:twitter)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(A{22}[a-zA-Z0-9%]{80,100})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:twitter)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(A{22}[a-zA-Z0-9%]{80,100})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "typeform-api-token"
-regex = '''(?i)[\w.-]{0,50}?(?:typeform)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(tfp_[a-z0-9\-_\.=]{59})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:typeform)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(tfp_[a-z0-9\-_\.=]{59})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "vault-batch-token"
-regex = '''\b(hvb\.[\w-]{138,300})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b(hvb\.[\w-]{138,300})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "vault-service-token"
-regex = '''\b((?:hvs\.[\w-]{90,120}|s\.(?i:[a-z0-9]{24})))(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''\b((?:hvs\.[\w-]{90,120}|s\.(?i:[a-z0-9]{24})))(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "yandex-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:yandex)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(t1\.[A-Z0-9a-z_-]+[=]{0,2}\.[A-Z0-9a-z_-]{86}[=]{0,2})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:yandex)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(t1\.[A-Z0-9a-z_-]+[=]{0,2}\.[A-Z0-9a-z_-]{86}[=]{0,2})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "yandex-api-key"
-regex = '''(?i)[\w.-]{0,50}?(?:yandex)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(AQVN[A-Za-z0-9_\-]{35,38})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:yandex)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(AQVN[A-Za-z0-9_\-]{35,38})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "yandex-aws-access-token"
-regex = '''(?i)[\w.-]{0,50}?(?:yandex)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}(YC[a-zA-Z0-9_\-]{38})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:yandex)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}(YC[a-zA-Z0-9_\-]{38})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
 [[rules]]
 id = "zendesk-secret-key"
-regex = '''(?i)[\w.-]{0,50}?(?:zendesk)(?:[ \t\w.-]{0,20})[\s'"]{0,3}(?:=|>|:{1,3}=|\|\||:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{40})(?:[\x60'"\s;,)}\]]|\\[nr]|$)'''
+regex = '''(?i)[\w.-]{0,50}?(?:zendesk)(?:[ \t\w.-]{0,20})[\s'"\]]{0,4}(?:=|>|:{1,3}=|\|\|?|:|=>|\?=|,)[\x60'"\s=]{0,5}([a-z0-9]{40})(?:[\x60'"\s;,)}\]&<>|#*.!?\\/@:]|$)'''
