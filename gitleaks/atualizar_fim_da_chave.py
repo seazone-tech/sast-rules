@@ -15,7 +15,14 @@ import tomllib
 from pathlib import Path
 
 VELHO = "(?:[\\x60'\"\\s;]|\\\\[nr]|$)"
-NOVO = "(?:[\\x60'\"\\s;,)}\\]]|\\\\[nr]|$)"
+# Depois da chave pode vir também: ) , } ] (código), & (URL), < > (XML/HTML), | (tabela), # (âncora), * (negrito),
+# . ! ? (fim de frase), \ (string escapada), / (caminho de URL), @ e : (usuario:token@host).
+NOVO = "(?:[\\x60'\"\\s;,)}\\]&<>|#*.!?\\\\/@:]|$)"
+# Entre o nome e o valor: | sozinho (tabela markdown) e ] antes do sinal (os.environ['X'] = ..., config["X"] = ...).
+TROCAS = (
+    ("(?:=|>|:{1,3}=|\\|\\||:|=>|\\?=|,)", "(?:=|>|:{1,3}=|\\|\\|?|:|=>|\\?=|,)"),
+    ("[\\s'\"]{0,3}", "[\\s'\"\\]]{0,4}"),
+)
 # generic-api-key: ampliar o fim só trouxe ruído (medido em 4.581 commits). jwt: ajustada na seção de ajustes.
 FORA = {"generic-api-key", "jwt"}
 MARCO = "# ============ CORREÇÃO DO FIM DA CHAVE (gerado) ============"
@@ -29,11 +36,14 @@ def main() -> None:
     linhas = [
         MARCO,
         "# Nas regras padrão, a chave só casava se viesse seguida de aspas, espaço, ; ou fim de linha.",
-        f"# Aqui aceitamos também ) , }} ] (ex.: createClient(url, CHAVE)). Gerado de gitleaks {versao}.",
+        f"# Aqui aceitamos também ) , }} ] & < > | # * . ! ? \\ / @ : depois da chave, e | ou ] antes do sinal. Gerado de gitleaks {versao}.",
     ]
     for regra in padrao["rules"]:
         if VELHO in regra.get("regex", "") and regra["id"] not in FORA:
-            linhas += ["[[rules]]", f'id = "{regra["id"]}"', "regex = '''" + regra["regex"].replace(VELHO, NOVO) + "'''"]
+            regex = regra["regex"].replace(VELHO, NOVO)
+            for velho, novo in TROCAS:
+                regex = regex.replace(velho, novo)
+            linhas += ["[[rules]]", f'id = "{regra["id"]}"', "regex = '''" + regex + "'''"]
     alvo.write_text(cabeca + "\n".join(linhas) + "\n")
     print(f"{sum(1 for l in linhas if l == '[[rules]]')} regras com o fim da chave corrigido")
 
