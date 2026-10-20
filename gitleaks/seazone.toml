@@ -627,6 +627,7 @@ regexes = [
   '''(?-i)^/''',
   '''(?-i)^(?:process\.env|import\.meta\.env|os\.environ|os\.getenv|Deno\.env|settings|config|cfg|env|self|this|local|var|_s)\b''',
   '''(?-i)^[a-z_][a-z0-9_]*(?:\??\.[A-Za-z_][A-Za-z0-9_]*)+[,;)]?$''',
+  '''(?-i)^[a-z_][a-z0-9_]*(?:\[\d+\])?(?:\.[A-Za-z_][A-Za-z0-9_]*(?:\[\d+\])?)+$''',
   '''(?-i)^[A-Z][A-Z0-9_]*=?$''',
   '''(?-i)^[-_]?[a-z]+(?:[-_.][a-z]+)+[.(]?$''',
   '''(?-i)^[a-z]{2,}(?:[A-Z][a-z]{2,})+[0-9]{0,2}[.(]?$''',
@@ -745,13 +746,14 @@ regexes = [
 ]
 [[rules.allowlists]]
 description = "dentro de pasta/arquivo de teste"
-paths = ['''(?i)(?:^|/)(?:tests?|__tests__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
+paths = ['''(?i)(?:^|/)\.github/workflows/|(?:^|/)[\w-]*e2e[\w-]*/|(?:^|/)(?:tests?|__tests__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
 [[rules.allowlists]]
 description = "referência, não o valor: caminho do SSM, variável de ambiente, atributo de config, nome em maiúsculas, texto de exemplo"
 regexes = [
   '''(?-i)^/''',
   '''(?-i)^(?:process\.env|import\.meta\.env|os\.environ|os\.getenv|Deno\.env|settings|config|cfg|env|self|this|local|var|_s)\b''',
   '''(?-i)^[a-z_][a-z0-9_]*(?:\??\.[A-Za-z_][A-Za-z0-9_]*)+[,;)]?$''',
+  '''(?-i)^[a-z_][a-z0-9_]*(?:\[\d+\])?(?:\.[A-Za-z_][A-Za-z0-9_]*(?:\[\d+\])?)+$''',
   '''(?-i)^[A-Z][A-Z0-9_]*=?$''',
   '''(?-i)^[-_]?[a-z]+(?:[-_.][a-z]+)+[.(]?$''',
   '''(?-i)^[a-z]{2,}(?:[A-Z][a-z]{2,})+[0-9]{0,2}[.(]?$''',
@@ -870,6 +872,7 @@ regexes = [
   '''(?-i)^(?:\$|\{|<|%|/)''',
   '''(?-i)^(?:process\.env|import\.meta\.env|os\.environ|os\.getenv|Deno\.env|settings|config|cfg|env|self|this|local|var|_s)\b''',
   '''(?-i)^[a-z_][a-z0-9_]*(?:\??\.[A-Za-z_][A-Za-z0-9_]*)+[,;)]?$''',
+  '''(?-i)^[a-z_][a-z0-9_]*(?:\[\d+\])?(?:\.[A-Za-z_][A-Za-z0-9_]*(?:\[\d+\])?)+$''',
   '''(?-i)^[A-Z][A-Z0-9_]*=?$''',
   '''(?-i)^[-_]?[a-z]+(?:[-_.][a-z]+)+[.(]?$''',
   '''(?-i)^[a-z]{2,}(?:[A-Z][a-z]{2,})+[0-9]{0,2}[.(]?$''',
@@ -909,6 +912,7 @@ regexes = [
   '''(?-i)^(?:\$|\{|<|%|/)''',
   '''(?-i)^(?:process\.env|import\.meta\.env|os\.environ|os\.getenv|Deno\.env|settings|config|cfg|env|self|this|local|var|_s)\b''',
   '''(?-i)^[a-z_][a-z0-9_]*(?:\??\.[A-Za-z_][A-Za-z0-9_]*)+[,;)]?$''',
+  '''(?-i)^[a-z_][a-z0-9_]*(?:\[\d+\])?(?:\.[A-Za-z_][A-Za-z0-9_]*(?:\[\d+\])?)+$''',
   '''(?-i)^[A-Z][A-Z0-9_]*=?$''',
   '''(?-i)^[-_]?[a-z]+(?:[-_.][a-z]+)+[.(]?$''',
   '''(?-i)^[a-z]{2,}(?:[A-Z][a-z]{2,})+[0-9]{0,2}[.(]?$''',
@@ -916,7 +920,7 @@ regexes = [
 ]
 [[rules.allowlists]]
 description = "valor sem dígito é nome de campo ou texto, não chave"
-regexes = ['''(?-i)^[A-Za-z_/.\-]+$''']
+regexes = ['''(?-i)^[A-Za-z_/.\-]+$''', '''(?-i)^[^@\s]+@[^@\s]+\.[a-z]{2,}(?:\.[a-z]{2})?$''', '''(?-i)^[a-z0-9]*[_:.-][a-z0-9_:.-]*$''']
 [[rules.allowlists]]
 description = "dentro de pasta/arquivo de teste"
 paths = ['''(?i)(?:^|/)(?:tests?|__tests__|__fixtures__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
@@ -949,6 +953,7 @@ regexes = [
   '''(?-i)^/''',
   '''(?-i)^(?:process\.env|import\.meta\.env|os\.environ|os\.getenv|Deno\.env|settings|config|cfg|env|self|this|local|var|_s)\b''',
   '''(?-i)^[a-z_][a-z0-9_]*(?:\??\.[A-Za-z_][A-Za-z0-9_]*)+[,;)]?$''',
+  '''(?-i)^[a-z_][a-z0-9_]*(?:\[\d+\])?(?:\.[A-Za-z_][A-Za-z0-9_]*(?:\[\d+\])?)+$''',
   '''(?-i)^[A-Z][A-Z0-9_]*=?$''',
   '''(?-i)^[-_]?[a-z]+(?:[-_.][a-z]+)+[.(]?$''',
   '''(?-i)^[a-z]{2,}(?:[A-Z][a-z]{2,})+[0-9]{0,2}[.(]?$''',
