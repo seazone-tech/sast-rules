@@ -509,6 +509,21 @@ regexes = [
 description = "senha de teste dentro de pasta/arquivo de teste"
 paths = ['''(?i)(?:^|/)(?:tests?|__tests__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
 
+# 16/11/2026: código curto sem formato de provedor (chave de consulta de processo, senha de protocolo), que nenhuma
+# regra pegava. Nível 1. Falso alarme medido no HEAD de seazone-skills (1), seazone-ai-review (0) e olimpo (3).
+[[rules]]
+id = "chave-de-acesso-curta"
+description = "Código curto de acesso (chave de consulta de processo, senha de protocolo) logo depois de chave/senha"
+regex = '''(?i)\b(?:chave|senha|c[oó]digo[ \t]+d[eo][ \t]+(?:acesso|consulta|verifica[cç][aã]o|autentica[cç][aã]o))(?:[ \t]+d[eo][ \t]+(?:acesso|consulta))?(?:[ \t]*(?:[:=]|[-–])[ \t]*|[ \t]+)["'\x60]?([A-Za-z0-9]{6,16})(?:["'\x60\s;,.)|\]]|$)'''
+keywords = ["chave", "senha", "codigo", "código"]
+[[rules.allowlists]]
+description = "só letras (palavra) ou só dígitos (número de processo, CEP, telefone)"
+regexTarget = "secret"
+regexes = ['''^[A-Za-z]+$''', '''^[0-9]+$''', '''(?i)^base64$''']
+[[rules.allowlists]]
+description = "valor de teste dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)(?:tests?|__tests__|spec|specs|fixtures?|mocks?|e2e)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$''']
+
 # ============ IA / LLM ============
 
 [[rules]]
