@@ -38,8 +38,8 @@ gitleaks 8.30.1 (`[extend] useDefault = true`).
    - campo `"key"` (Pipedrive, i18n);
    - palavras em português com "api" no meio;
    - valores de exemplo óbvios;
-   - depois de "chave", valor com cara de nome: código de imóvel, `sha256`, id de chave do GCP, commit, ID do
-     Slack e campo entre crases.
+   - depois de "chave" sozinha, valor com cara de nome: código de imóvel, `sha256`, id de chave do GCP, commit,
+     ID do Slack e campo entre crases (em "chave de acesso/consulta" isso não vale).
 4. **Ponto cego do fim da chave:** 149 regras padrão passam a aceitar a chave seguida de `)`, `,`, `}` ou `]`.
    Esse bloco é gerado por `atualizar_fim_da_chave.py`.
 5. **Arquivos que nunca vão pro git:** `.claude/settings.local.json`, `.env.local`, `.netrc`, histórico de
@@ -54,23 +54,24 @@ gitleaks 8.30.1 (`[extend] useDefault = true`).
 | 4.581 commits de 3 meses em 198 repos | 151 barrados (a maioria falso) | 19 barrados (16 vazamentos prováveis) + 36 perguntas |
 
 Os bancos de casos ficam nos testes do plugin (`seazone-skills`, `geral/tests/`). As regras de código curto
-(`chave-de-acesso-curta` e `senha-ou-codigo-curto`) têm banco aqui, em `test_chave_de_acesso_curta.py`:
+(`chave-curta`, `chave-de-acesso-curta` e `senha-ou-codigo-curto`) têm banco aqui, em `test_chave_de_acesso_curta.py`:
 `python3 -m unittest discover -s gitleaks` (precisa do gitleaks no PATH ou na variável `GITLEAKS`).
 
 ### Código curto (16/11/2026)
 
 Só as regras de código curto, contando achados únicos (arquivo + valor):
 
-| onde | regra única da #18 | `chave-de-acesso-curta` + `senha-ou-codigo-curto` |
+| onde | regra única da #18 | `chave-curta` + `chave-de-acesso-curta` + `senha-ou-codigo-curto` |
 |---|---|---|
 | 39 repos, commits desde 20/07 (o corpus do `fp.sh`) | 9 (8 de "chave") | 1 (0 de "chave") |
 | 88 repos, histórico todo (nos 4 maiores, o HEAD e até 12 meses) | 35 (20 de "chave") | 15 (0 de "chave") |
-| conversas do Claude e `~/Downloads` (fora da calibração) | 58 (25 de "chave") | 41 (7 de "chave") |
+| conversas do Claude e `~/Downloads` (fora da calibração) | 58 (25 de "chave") | 45 (7 de "chave") |
 
 Os 20 de "chave" eram campo de código, id de chave do GCP, commit, ID do Slack, código de imóvel e hash
 cortado. Os 7 que ficaram têm cara de chave sorteada (snapshot do Grafana em pergunta de teste e valor aleatório
-do teste da matriz). Senha e código de acesso não mudaram. Numa simulação, a regra pega 89% das chaves sorteadas
-de 8 letras e números; as que escapam saem, por acaso, com todas as letras antes dos números.
+do teste da matriz). Senha e código de acesso não mudaram (as conversas crescem entre uma medição e outra).
+Numa simulação com chaves sorteadas de 8 letras e números, "chave X" pega 89% (as que escapam saem, por acaso,
+com todas as letras antes dos números) e "chave de acesso X" pega todas.
 
 ## Mudar uma regra
 

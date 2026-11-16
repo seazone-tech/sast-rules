@@ -1,4 +1,4 @@
-"""Banco das regras chave-de-acesso-curta e senha-ou-codigo-curto, com o gitleaks de verdade.
+"""Banco das regras chave-curta, chave-de-acesso-curta e senha-ou-codigo-curto, com o gitleaks de verdade.
 
 Rodar: python3 -m unittest discover -s gitleaks
 
@@ -18,10 +18,11 @@ import unittest
 from pathlib import Path
 
 REGRAS = Path(__file__).resolve().parent / "seazone.toml"
+REGRAS_CURTAS = "chave-curta,chave-de-acesso-curta,senha-ou-codigo-curto"
 J = "".join
 V = J(["K7Q", "M2R9P"])  # inventado, no formato do caso: 8 caracteres com letras e números
 
-# (id, conteúdo): alguma das duas regras TEM que pegar
+# (id, conteúdo): alguma das três regras TEM que pegar
 POSITIVOS = [
     ("tabela-do-caso", f"| 40213/2026 - Chave {V} | SZS |  | Tributário | — | — | número não CNJ (administrativo) |  | legado |\n"),
     ("dois-pontos", f"Chave: {V}\n"),
@@ -34,12 +35,18 @@ POSITIVOS = [
     ("minusculas", f"chave {V.lower()}\n"),
     ("seis", J(["chave 7QM", "2R9\n"])),
     ("dezesseis", J(["chave K7Q", "M2R9PZ4TWB8LN\n"])),
+    # entre crases, com maiúscula e número misturados: não é nome de campo
+    ("crase-com-maiuscula", J(["Chave: `hT6w", "N2rX`\n"])),
+    # "123" no meio de uma chave sorteada não faz dela um molde
+    ("molde-no-meio", J(["Chave Q7W1", "23ZK\n"])),
+    # "chave de acesso/consulta" já diz o que é: letras e depois números também conta
+    ("de-acesso-letras-e-numeros", J(["Chave de acesso: KQTR", "4821\n"])),
     # a senha e o código de acesso continuam como o #18 deixou: senha fraca também é vazamento
     ("senha-fraca", J(["senha: Mar", "ia2024\n"])),
     ("codigo-de-acesso", J(["código de acesso: QTR", "0412\n"])),
 ]
 
-# (id, conteúdo): nenhuma das duas pode pegar
+# (id, conteúdo): nenhuma das três pode pegar
 NEGATIVOS = [
     ("pix-email", "Chave PIX: financeiro@seazone.com.br\n"),
     ("pix-cpf", "Chave PIX: 123.456.789-09\n"),
@@ -68,14 +75,14 @@ def _gitleaks():
 
 
 def _achados(casos):
-    """Roda as duas regras uma vez sobre todos os casos (um arquivo por caso) e devolve os ids pegos."""
+    """Roda as três regras uma vez sobre todos os casos (um arquivo por caso) e devolve os ids pegos."""
     with tempfile.TemporaryDirectory() as pasta:
         pasta = Path(pasta)
         for cid, conteudo in casos:
             (pasta / f"{cid}.md").write_text(conteudo, encoding="utf-8")
         relatorio = pasta / "relatorio.json"
         subprocess.run([_gitleaks(), "dir", str(pasta), "--config", str(REGRAS),
-                        "--enable-rule", "chave-de-acesso-curta", "--enable-rule", "senha-ou-codigo-curto",
+                        "--enable-rule", REGRAS_CURTAS,
                         "--no-banner", "--log-level", "error", "--exit-code", "0",
                         "--report-format", "json", "--report-path", str(relatorio)], check=True)
         return {Path(a["File"]).stem for a in json.loads(relatorio.read_text(encoding="utf-8"))}
