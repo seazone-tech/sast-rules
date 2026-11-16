@@ -14,6 +14,9 @@
 # GitGuardian). O que vem depois da chave passou a aceitar & < > | # * . ! ? \ / @ : e, antes do sinal, | e ].
 # Regras novas para ~40 formatos (ghs_ novo do GitHub, Azure, sessão do Slack, Metabase, OneSignal, IA...).
 # Entropia 3,0 (não 3,5) nas regras que aceitam hex: hex de 32 às vezes fica abaixo de 3,5 por acaso.
+# 16/11: código curto depois de "chave", "senha" ou "código de acesso" (chave de consulta de processo,
+# seazone-skills#1029): regras chave-curta, chave-de-acesso-curta e senha-ou-codigo-curto, banco em
+# gitleaks/test_chave_de_acesso_curta.py.
 #
 # Ao subir a versão do gitleaks: rode gitleaks/atualizar_fim_da_chave.py com a config padrão nova
 # (o bloco "CORREÇÃO DO FIM DA CHAVE" no fim deste arquivo é gerado) e os testes do plugin.
@@ -510,12 +513,57 @@ description = "senha de teste dentro de pasta/arquivo de teste"
 paths = ['''(?i)(?:^|/)(?:tests?|__tests__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
 
 # 16/11/2026: código curto sem formato de provedor (chave de consulta de processo, senha de protocolo), que nenhuma
-# regra pegava. Nível 1. Falso alarme medido no HEAD de seazone-skills (1), seazone-ai-review (0) e olimpo (3).
+# regra pegava (seazone-skills#1029: "| <número>/2026 - Chave <8 letras e números> |" numa tabela). Nível 1.
+# Três regras. "chave" sozinha é palavra comum em doc e código (chave primária, chave do JSON, chave do imóvel):
+# só conta valor com cara de chave sorteada. "chave de acesso/consulta" já diz o que é: só passa palavra, número
+# puro e molde. "senha" e "código de acesso" ficam como estavam (senha fraca como Maria2024 também é vazamento).
+# Banco de casos: gitleaks/test_chave_de_acesso_curta.py.
+[[rules]]
+id = "chave-curta"
+description = "Chave curta (de consulta de processo, por exemplo) logo depois da palavra \"chave\""
+regex = '''(?i)\bchave(?:[ \t]*[:=|\-–—][ \t]*|[ \t]+)["'\x60*]{0,2}([a-z0-9]{6,16})(?:[\x60'"\s;,)}\]&<>|#*!?\\/@:]|\.(?:[^.]|$)|$)'''
+keywords = ["chave"]
+[[rules.allowlists]]
+description = "não é chave: só letras ou só números (palavra, CPF, NF-e), letras e depois números (código de imóvel, sha256), hex minúsculo (id de chave do GCP, commit), nome técnico, ID do Slack, molde"
+regexes = [
+  '''(?i)^[a-z]+$''',
+  '''(?-i)^[0-9]+$''',
+  '''(?i)^[a-z]+[0-9]+$''',
+  '''(?i)^[0-9]+[a-z]+$''',
+  '''(?-i)^[0-9a-f]+$''',
+  '''(?i)^(?:aes|sha|rsa|ed|curve|secp|utf|uuidv?|oauth|base|hmac|pbkdf|argon)[0-9]''',
+  '''(?-i)^[BCDEFGSTUW]0[A-Z0-9]{6,10}$''',
+  '''(?i)^(?:a1b2c3(?:d4(?:e5(?:f6)?)?)?|(?:abc|xyz)?123(?:456)?(?:abc|xyz)?)$''',
+]
+[[rules.allowlists]]
+description = "nome de campo entre crases: minúsculas com um número no meio (a chave `expb2b` de um mapa)"
+regexTarget = "match"
+regexes = ['''(?-i)\x60[a-z]{3,}[0-9]{1,2}[a-z]+\x60''']
+[[rules.allowlists]]
+description = "valor de teste dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)(?:tests?|__tests__|__fixtures__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
+
 [[rules]]
 id = "chave-de-acesso-curta"
-description = "Código curto de acesso (chave de consulta de processo, senha de protocolo) logo depois de chave/senha"
-regex = '''(?i)\b(?:chave|senha|c[oó]digo[ \t]+d[eo][ \t]+(?:acesso|consulta|verifica[cç][aã]o|autentica[cç][aã]o))(?:[ \t]+d[eo][ \t]+(?:acesso|consulta))?(?:[ \t]*(?:[:=]|[-–])[ \t]*|[ \t]+)["'\x60]?([A-Za-z0-9]{6,16})(?:["'\x60\s;,.)|\]]|$)'''
-keywords = ["chave", "senha", "codigo", "código"]
+description = "Chave curta escrita como \"chave de acesso\" ou \"chave de consulta\" (de processo, por exemplo)"
+regex = '''(?i)\bchave[ \t]+d[eo][ \t]+(?:acesso|consulta)(?:[ \t]*[:=|\-–—][ \t]*|[ \t]+)["'\x60*]{0,2}([a-z0-9]{6,16})(?:[\x60'"\s;,)}\]&<>|#*!?\\/@:]|\.(?:[^.]|$)|$)'''
+keywords = ["chave"]
+[[rules.allowlists]]
+description = "só letras (palavra), só dígitos (NF-e, número de processo) ou molde"
+regexes = [
+  '''(?i)^[a-z]+$''',
+  '''(?-i)^[0-9]+$''',
+  '''(?i)^(?:a1b2c3(?:d4(?:e5(?:f6)?)?)?|(?:abc|xyz)?123(?:456)?(?:abc|xyz)?)$''',
+]
+[[rules.allowlists]]
+description = "valor de teste dentro de pasta/arquivo de teste"
+paths = ['''(?i)(?:^|/)(?:tests?|__tests__|__fixtures__|spec|specs|fixtures?|mocks?|e2e|cypress|playwright)/|\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|/)test_[^/]*\.py$|_test\.(?:py|go)$|(?:^|/)conftest\.py$''']
+
+[[rules]]
+id = "senha-ou-codigo-curto"
+description = "Senha ou código de acesso curto (senha de protocolo, código de verificação) logo depois de senha/código"
+regex = '''(?i)\b(?:senha|c[oó]digo[ \t]+d[eo][ \t]+(?:acesso|consulta|verifica[cç][aã]o|autentica[cç][aã]o))(?:[ \t]+d[eo][ \t]+(?:acesso|consulta))?(?:[ \t]*(?:[:=]|[-–])[ \t]*|[ \t]+)["'\x60]?([A-Za-z0-9]{6,16})(?:["'\x60\s;,.)|\]]|$)'''
+keywords = ["senha", "codigo", "código"]
 [[rules.allowlists]]
 description = "só letras (palavra) ou só dígitos (número de processo, CEP, telefone)"
 regexTarget = "secret"
