@@ -29,13 +29,17 @@ gitleaks 8.30.1 (`[extend] useDefault = true`).
    - URL de banco com senha e senha escrita à mão;
    - chave `sk-` do hub LiteLLM e token OAuth do Claude Code;
    - Gemini `AQ.`, Cloudflare `cfut_`/`cfat_`/`cfast_` e `ghs_` novo;
-   - Coolify, Asaas, Mercado Pago, Pagar.me, Z-API e outros.
+   - Coolify, Asaas, Mercado Pago, Pagar.me, Z-API e outros;
+   - código curto (6 a 16 letras e números) logo depois de "chave", "senha" ou "código de acesso", como a
+     chave de consulta de um processo.
 3. **Menos falso alarme:**
    - hash de imagem no gitops;
    - nome de variável;
    - campo `"key"` (Pipedrive, i18n);
    - palavras em português com "api" no meio;
-   - valores de exemplo óbvios.
+   - valores de exemplo óbvios;
+   - depois de "chave", valor com cara de nome: código de imóvel, `sha256`, id de chave do GCP, commit, ID do
+     Slack e campo entre crases.
 4. **Ponto cego do fim da chave:** 149 regras padrão passam a aceitar a chave seguida de `)`, `,`, `}` ou `]`.
    Esse bloco é gerado por `atualizar_fim_da_chave.py`.
 5. **Arquivos que nunca vão pro git:** `.claude/settings.local.json`, `.env.local`, `.netrc`, histórico de
@@ -49,7 +53,24 @@ gitleaks 8.30.1 (`[extend] useDefault = true`).
 | Banco de formatos dos provedores (96 casos) | 55 certos | 96 certos |
 | 4.581 commits de 3 meses em 198 repos | 151 barrados (a maioria falso) | 19 barrados (16 vazamentos prováveis) + 36 perguntas |
 
-Os bancos de casos ficam nos testes do plugin (`seazone-skills`, `geral/tests/`).
+Os bancos de casos ficam nos testes do plugin (`seazone-skills`, `geral/tests/`). As regras de código curto
+(`chave-de-acesso-curta` e `senha-ou-codigo-curto`) têm banco aqui, em `test_chave_de_acesso_curta.py`:
+`python3 -m unittest discover -s gitleaks` (precisa do gitleaks no PATH ou na variável `GITLEAKS`).
+
+### Código curto (16/11/2026)
+
+Só as regras de código curto, contando achados únicos (arquivo + valor):
+
+| onde | regra única da #18 | `chave-de-acesso-curta` + `senha-ou-codigo-curto` |
+|---|---|---|
+| 39 repos, commits desde 20/07 (o corpus do `fp.sh`) | 9 (8 de "chave") | 1 (0 de "chave") |
+| 88 repos, histórico todo (nos 4 maiores, o HEAD e até 12 meses) | 35 (20 de "chave") | 15 (0 de "chave") |
+| conversas do Claude e `~/Downloads` (fora da calibração) | 58 (25 de "chave") | 41 (7 de "chave") |
+
+Os 20 de "chave" eram campo de código, id de chave do GCP, commit, ID do Slack, código de imóvel e hash
+cortado. Os 7 que ficaram têm cara de chave sorteada (snapshot do Grafana em pergunta de teste e valor aleatório
+do teste da matriz). Senha e código de acesso não mudaram. Numa simulação, a regra pega 89% das chaves sorteadas
+de 8 letras e números; as que escapam saem, por acaso, com todas as letras antes dos números.
 
 ## Mudar uma regra
 
