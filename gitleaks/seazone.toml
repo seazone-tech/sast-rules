@@ -30,6 +30,10 @@ useDefault = true
 description = "valor falso óbvio, em qualquer regra"
 regexes = ['''(?i)abcdefghij|bcdefghijk|0123456789a|1234567890a|x{8,}|0{12,}''']
 
+[[allowlists]]
+description = "vetores de teste públicos de RFC (não são segredo): RFC 6455, 1.3, Sec-WebSocket-Key e Accept do exemplo"
+regexes = ['''^(?:dGhlIHNhbXBsZSBub25jZQ==|s3pPLMBiTxaQ9kYGzzhZRbK\+xOo=)$''']
+
 # ============ AJUSTES EM REGRAS PADRÃO ============
 
 [[rules]]
