@@ -1,0 +1,96 @@
+# Fixtures de referencia para ci-cost-guard.yaml (mantido fora de pr-blocking/ para nao ser lido como regra pelo Opengrep).
+name: ci-cost-guard-fixture
+
+on:
+  pull_request:
+
+jobs:
+  # ruleid: seazone-gha-disallowed-expensive-runner
+  # ruleid: seazone-gha-missing-job-timeout
+  bad_macos_no_timeout:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+  # ruleid: seazone-gha-disallowed-expensive-runner
+  bad_windows_list:
+    timeout-minutes: 10
+    runs-on: [self-hosted, windows-2022]
+    steps:
+      - uses: actions/checkout@v4
+
+  bad_matrix_macos:
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        # ruleid: seazone-gha-disallowed-expensive-runner
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+  good_cross_compile_target:
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        target: [linux-x64, windows-x64, macos-arm64]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+  # ok: seazone-gha-disallowed-expensive-runner
+  good_matrix_ubuntu:
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+  # ruleid: seazone-gha-disallowed-expensive-runner
+  bad_dynamic_runner:
+    timeout-minutes: 15
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+  bad_upload_artifacts:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      # ruleid: seazone-gha-artifact-missing-retention
+      - name: Upload sem retention
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-a
+          path: dist/
+
+      - name: Upload com retention excessivo
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: build-b
+          path: dist/
+          # ruleid: seazone-gha-artifact-excessive-retention
+          retention-days: 30
+
+      - name: Upload com retention dinamico
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-dyn
+          path: dist/
+          # ruleid: seazone-gha-artifact-excessive-retention
+          retention-days: ${{ vars.RETENTION_DAYS }}
+
+      # ok: seazone-gha-artifact-missing-retention
+      # ok: seazone-gha-artifact-excessive-retention
+      - name: Upload conforme
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-c
+          path: dist/
+          retention-days: 3
+
+  # ok: seazone-gha-missing-job-timeout (reusable workflow caller nao aceita timeout-minutes)
+  reusable_caller:
+    uses: seazone-tech/.github/.github/workflows/sast.yml@main

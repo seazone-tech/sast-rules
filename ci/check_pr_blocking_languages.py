@@ -31,12 +31,12 @@ import sys
 
 import yaml
 
-# Linguagens cujas extensoes o filtro de caminho do caller cobre.
-PERMITIDAS = {"python", "javascript", "typescript", "go"}
+# Linguagens cujas extensoes o filtro de caminho do caller cobre (seazone-sast.yml e sast.yml).
+PERMITIDAS = {"python", "javascript", "typescript", "go", "yaml"}
 
 # Mantido em sincronia com o `paths:` do caller (workflow-templates/seazone-sast.yml).
 EXTENSOES_DO_CALLER = (
-    "py pyi js jsx mjs cjs ts tsx mts cts go"
+    "py pyi js jsx mjs cjs ts tsx mts cts go yml yaml"
 )
 
 
@@ -61,7 +61,7 @@ def main() -> int:
     print(f"linguagens permitidas: {', '.join(sorted(PERMITIDAS))}")
     if not infratores:
         print("OK -- nenhuma regra fora do conjunto coberto pelo filtro de caminho do caller.")
-        return 0
+        return validar_allowlist(raiz)
 
     print()
     print("FALHOU: regra(s) em pr-blocking/ declaram linguagem que o filtro de")
@@ -81,6 +81,35 @@ def main() -> int:
     print("     Ha ~481 callers; ha um procedimento de push direto com [skip ci] que")
     print("     faz isso sem custo de Actions -- ver o historico de SRE-46.")
     return 1
+
+
+def validar_allowlist(raiz):
+    import re
+
+    allowlist = os.path.join(raiz, "ci", "expensive-runner-allowlist.txt")
+    if not os.path.exists(allowlist):
+        print(f"::error file={allowlist}::arquivo de allowlist ausente.")
+        return 1
+    vistas = set()
+    entradas = 0
+    with open(allowlist, encoding="utf-8") as fh:
+        for num, raw in enumerate(fh, 1):
+            linha = raw.strip()
+            if not linha or linha.startswith("#"):
+                continue
+            if not re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", linha):
+                print(
+                    f"::error file={allowlist}::linha {num} invalida ({linha!r}); "
+                    "esperado formato owner/repo."
+                )
+                return 1
+            if linha in vistas:
+                print(f"::error file={allowlist}::repositorio duplicado na linha {num}: {linha}")
+                return 1
+            vistas.add(linha)
+            entradas += 1
+    print(f"allowlist de runners caros validada: {entradas} entradas.")
+    return 0
 
 
 if __name__ == "__main__":
