@@ -1,0 +1,146 @@
+rules:
+  - id: seazone-gha-disallowed-expensive-runner
+    message: >-
+      Runners macos-* e windows-* no GitHub-hosted tem multiplicador de custo alto (ate 10x)
+      e estao bloqueados por politica FinOps na org seazone-tech. Use um runner Linux da org
+      (ubuntu-latest ou self-hosted [self-hosted, linux, x64, seazone-aws]) ou solicite
+      inclusao do repositorio em ci/expensive-runner-allowlist.txt no repo sast-rules com
+      aprovacao de @seazone-tech/sre.
+    severity: ERROR
+    languages:
+      - yaml
+    paths:
+      include:
+        - ".github/workflows/*.yml"
+        - ".github/workflows/*.yaml"
+        - "**/.github/workflows/*.yml"
+        - "**/.github/workflows/*.yaml"
+    pattern-either:
+      - patterns:
+          - pattern: |
+              runs-on: $RUNNER
+          - metavariable-regex:
+              metavariable: $RUNNER
+              regex: ^(macos|windows)(-.+)?$
+      - patterns:
+          - pattern: |
+              runs-on:
+                - ...
+                - $RUNNER
+                - ...
+          - metavariable-regex:
+              metavariable: $RUNNER
+              regex: ^(macos|windows)(-.+)?$
+      - patterns:
+          - pattern-inside: |
+              matrix:
+                ...
+          - pattern-either:
+              - pattern: |
+                  $KEY: $RUNNER
+              - pattern: |
+                  $KEY:
+                    - ...
+                    - $RUNNER
+                    - ...
+          - metavariable-regex:
+              metavariable: $RUNNER
+              regex: ^(macos|windows)-(latest|\d+)([-.a-z0-9]*)?$
+
+  - id: seazone-gha-missing-job-timeout
+    message: >-
+      Todo job com runs-on em workflow do GitHub Actions deve definir timeout-minutes explicito
+      para evitar jobs travados consumindo ate 360 minutos (default do GitHub). Defina
+      timeout-minutes (ex.: timeout-minutes: 15) no job $JOB.
+    severity: ERROR
+    languages:
+      - yaml
+    paths:
+      include:
+        - ".github/workflows/*.yml"
+        - ".github/workflows/*.yaml"
+        - "**/.github/workflows/*.yml"
+        - "**/.github/workflows/*.yaml"
+    patterns:
+      - pattern-inside: |
+          jobs:
+            ...
+      - pattern: |
+          $JOB:
+            ...
+            runs-on: $RUNNER
+            ...
+      - pattern-not: |
+          $JOB:
+            ...
+            timeout-minutes: $TIMEOUT
+            ...
+      - focus-metavariable: $JOB
+
+  - id: seazone-gha-artifact-missing-retention
+    message: >-
+      Todo step com actions/upload-artifact deve definir retention-days explicitamente
+      (maximo 3 dias) para evitar acumulo silencioso de storage pago (default do GitHub e
+      90 dias). Adicione retention-days: 3 (ou menor) no bloco with:.
+    severity: ERROR
+    languages:
+      - yaml
+    paths:
+      include:
+        - ".github/workflows/*.yml"
+        - ".github/workflows/*.yaml"
+        - "**/.github/workflows/*.yml"
+        - "**/.github/workflows/*.yaml"
+    patterns:
+      - pattern-inside: |
+          steps:
+            ...
+      - pattern-inside: |
+          uses: $ACTION
+          ...
+      - pattern-not-inside: |
+          uses: $ACTION
+          ...
+          with:
+            ...
+            retention-days: $DAYS
+            ...
+      - pattern: |
+          uses: $ACTION
+      - metavariable-regex:
+          metavariable: $ACTION
+          regex: ^actions/upload-artifact(@|$)
+
+  - id: seazone-gha-artifact-excessive-retention
+    message: >-
+      retention-days ($DAYS dias) em actions/upload-artifact excede o limite de 3 dias
+      definido pela politica de storage da org seazone-tech. Reduza para retention-days: 3
+      (ou menor).
+    severity: ERROR
+    languages:
+      - yaml
+    paths:
+      include:
+        - ".github/workflows/*.yml"
+        - ".github/workflows/*.yaml"
+        - "**/.github/workflows/*.yml"
+        - "**/.github/workflows/*.yaml"
+    patterns:
+      - pattern-inside: |
+          steps:
+            ...
+      - pattern-inside: |
+          uses: $ACTION
+          ...
+          with:
+            ...
+            retention-days: $DAYS
+            ...
+      - pattern: |
+          retention-days: $DAYS
+      - metavariable-regex:
+          metavariable: $ACTION
+          regex: ^actions/upload-artifact(@|$)
+      - metavariable-regex:
+          metavariable: $DAYS
+          regex: ^"?(0*[4-9]|0*[1-9][0-9]+)"?$

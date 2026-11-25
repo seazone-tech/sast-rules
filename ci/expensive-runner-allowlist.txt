@@ -1,0 +1,3 @@
+# Repositorios autorizados a introduzir ou alterar jobs com runs-on macos-* ou windows-*.
+# Um repositorio por linha no formato owner/repo (ex.: seazone-tech/meu-app-desktop).
+# Governado por @seazone-tech/sre (CODEOWNERS). Nasce vazio por decisao de FinOps.

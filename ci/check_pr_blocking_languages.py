@@ -31,12 +31,12 @@ import sys
 
 import yaml
 
-# Linguagens cujas extensoes o filtro de caminho do caller cobre.
-PERMITIDAS = {"python", "javascript", "typescript", "go"}
+# Linguagens cujas extensoes o filtro de caminho do caller cobre (seazone-sast.yml e sast.yml).
+PERMITIDAS = {"python", "javascript", "typescript", "go", "yaml"}
 
 # Mantido em sincronia com o `paths:` do caller (workflow-templates/seazone-sast.yml).
 EXTENSOES_DO_CALLER = (
-    "py pyi js jsx mjs cjs ts tsx mts cts go"
+    "py pyi js jsx mjs cjs ts tsx mts cts go yml yaml"
 )
 
 
