@@ -2,10 +2,11 @@ rules:
   - id: seazone-gha-disallowed-expensive-runner
     message: >-
       Runners macos-* e windows-* no GitHub-hosted tem multiplicador de custo alto (ate 10x)
-      e estao bloqueados por politica FinOps na org seazone-tech. Use um runner Linux da org
-      (ubuntu-latest ou self-hosted [self-hosted, linux, x64, seazone-aws]) ou solicite
-      inclusao do repositorio em ci/expensive-runner-allowlist.txt neste repo (consumido pelo
-      workflow central seazone-tech/.github/.github/workflows/sast.yml via --exclude-rule).
+      e estao bloqueados por politica FinOps na org seazone-tech. Expressoes dinamicas fora
+      de matrix.* (${{ inputs.* }}, ${{ vars.* }}) tambem sao bloqueadas porque contornam a
+      verificacao estatica. Use um runner Linux da org (ubuntu-latest ou [self-hosted, linux,
+      x64, seazone-aws]) ou solicite inclusao em ci/expensive-runner-allowlist.txt (validado
+      neste repo e aplicado pelo workflow central seazone-tech/.github/.github/workflows/sast.yml).
     severity: ERROR
     languages:
       - yaml
@@ -21,7 +22,7 @@ rules:
               runs-on: $RUNNER
           - metavariable-regex:
               metavariable: $RUNNER
-              regex: ^(macos|windows)(-.+)?$
+              regex: '^((macos|windows)(-.+)?|\$\{\{(?!\s*matrix\.[A-Za-z0-9_.-]+\s*\}\}).*\}\})$'
       - patterns:
           - pattern: |
               runs-on:
@@ -30,7 +31,7 @@ rules:
                 - ...
           - metavariable-regex:
               metavariable: $RUNNER
-              regex: ^(macos|windows)(-.+)?$
+              regex: '^((macos|windows)(-.+)?|\$\{\{(?!\s*matrix\.[A-Za-z0-9_.-]+\s*\}\}).*\}\})$'
       - patterns:
           - pattern-inside: |
               matrix:
@@ -113,9 +114,9 @@ rules:
 
   - id: seazone-gha-artifact-excessive-retention
     message: >-
-      retention-days ($DAYS dias) em actions/upload-artifact excede o limite de 3 dias
-      definido pela politica de storage da org seazone-tech. Reduza para retention-days: 3
-      (ou menor).
+      retention-days ($DAYS) em actions/upload-artifact precisa ser inteiro literal 1, 2 ou 3
+      conforme politica de storage da org seazone-tech (valores maiores, zero ou expressoes
+      dinamicas como ${{ vars.* }} sao bloqueados). Ajuste para retention-days: 3 (ou menor).
     severity: ERROR
     languages:
       - yaml
@@ -143,4 +144,4 @@ rules:
           regex: ^actions/upload-artifact(@.*)?$
       - metavariable-regex:
           metavariable: $DAYS
-          regex: ^"?(0*[4-9]|0*[1-9][0-9]+)"?$
+          regex: '^(?!"?0*[123]"?$).*$'
