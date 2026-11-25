@@ -4,8 +4,8 @@ rules:
       Runners macos-* e windows-* no GitHub-hosted tem multiplicador de custo alto (ate 10x)
       e estao bloqueados por politica FinOps na org seazone-tech. Use um runner Linux da org
       (ubuntu-latest ou self-hosted [self-hosted, linux, x64, seazone-aws]) ou solicite
-      inclusao do repositorio em ci/expensive-runner-allowlist.txt no repo sast-rules com
-      aprovacao de @seazone-tech/sre.
+      inclusao do repositorio em ci/expensive-runner-allowlist.txt neste repo (consumido pelo
+      workflow central seazone-tech/.github/.github/workflows/sast.yml via --exclude-rule).
     severity: ERROR
     languages:
       - yaml
@@ -109,7 +109,7 @@ rules:
           uses: $ACTION
       - metavariable-regex:
           metavariable: $ACTION
-          regex: ^actions/upload-artifact(@|$)
+          regex: ^actions/upload-artifact(@.*)?$
 
   - id: seazone-gha-artifact-excessive-retention
     message: >-
@@ -140,7 +140,7 @@ rules:
           retention-days: $DAYS
       - metavariable-regex:
           metavariable: $ACTION
-          regex: ^actions/upload-artifact(@|$)
+          regex: ^actions/upload-artifact(@.*)?$
       - metavariable-regex:
           metavariable: $DAYS
           regex: ^"?(0*[4-9]|0*[1-9][0-9]+)"?$
